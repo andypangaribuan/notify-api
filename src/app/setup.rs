@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026.
+ * Created by Andy Pangaribuan (andypangaribuan@treasury.id)
+ *
+ * All Rights Reserved.
+ */
+
+use rmod::config;
+
+pub(crate) async fn setup() {
+    rmod::store::update_db_with_deleted_at(true);
+    if let Some(timezone) = super::env::timezone() {
+        config::timezone(&timezone);
+    }
+}
