@@ -1,0 +1,29 @@
+[package]
+name = "notify-api"
+version = "0.1.0"
+edition = "2024"
+description = "Proxy API for notification channels"
+
+
+[profile.release]
+# debug = 0 (default): No information. You only get function names (which are sometimes mangled).
+# debug = 1: Gives you file names and line numbers, but doesn't include everything needed for a full debugger, so the binary size stays relatively small.
+# debug = 2: Full debug information (full file paths, variable names, etc.).
+# debug = 1
+debug = "line-directives-only"
+
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+
+[profile.dev]
+opt-level = 0
+debug = "full"
+
+
+[dependencies]
+# rmod = { path = "/Users/apangaribuan/ark/repo/gh/rmod" }
+rmod = { git = "https://github.com/andypangaribuan/rmod", tag = "v1.0.26" }

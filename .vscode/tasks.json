@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo build",
+      "type": "shell",
+      "command": "cargo build --bin notify-api && codesign -s - -f --entitlements entitlements.plist target/debug/notify-api",
+      "args": [],
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    }
+  ]
+}
