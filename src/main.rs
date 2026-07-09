@@ -20,6 +20,8 @@ use rmod::{fuse::Fuse, fuse::FuseHandler, fuse_endpoints, util, util::lifecycle}
 
 #[rmod::main]
 async fn main() {
+    let _ = rmod::rustls::crypto::ring::default_provider().install_default();
+
     rmod::log!("🔥 starting...");
     let (app_name, port) = env::app();
     util::ext::healthcheck(port);
@@ -27,7 +29,7 @@ async fn main() {
     initialize().await;
 
     // Spawn the SMTP proxy server task
-    rmod::tokio::spawn(async {
+    tokio::spawn(async {
         svc::smtp_proxy::start().await;
     });
 

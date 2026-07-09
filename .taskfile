@@ -27,13 +27,6 @@ function test {
 }
 
 
-#: generate proto files
-function generate {
-  find src/grc -maxdepth 1 -type f ! -name "mod.rs" -delete
-  ./res/proto-generator.sh
-}
-
-
 #: run cspell to check the project words
 function spell {
   spell-rs
@@ -108,6 +101,18 @@ function udeps {
 #: remove unused directories
 function rmd {
   rm -rf .cargo .devbox .rustup debug target test-debug
+}
+
+
+#: test swaks
+function cs {
+  swaks --to iam.pangaribuan@gmail.com \
+      --from treasury-info@treasury.id \
+      --server 127.0.0.1 \
+      --port 587 \
+      --auth LOGIN \
+      --auth-user notify-php-client \
+      --auth-password my-secure-password
 }
 
 
