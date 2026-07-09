@@ -16,29 +16,29 @@ extern crate rmod as tokio;
 
 use app::{env, setup};
 use handler::private::{self, defer};
-use rmod::{fuse::Fuse, fuse::FuseHandler, fuse_endpoints, util, util::lifecycle};
+use rmod::{fuse::Fuse, fuse::FuseHandler, fuse_endpoints, util, util::lifecycle, log};
 
 #[rmod::main]
 async fn main() {
     let _ = rmod::rustls::crypto::ring::default_provider().install_default();
 
-    rmod::log!("🔥 starting...");
+    log!("🔥 starting...");
     let (app_name, port) = env::app();
     util::ext::healthcheck(port);
 
     initialize().await;
 
     // Spawn the SMTP proxy server task
-    tokio::spawn(async {
+    rmod::tokio::spawn(async {
         svc::smtp_proxy::start().await;
     });
 
-    rmod::log!("🔥 rest api setup...");
+    log!("🔥 rest api setup...");
     rmod::fuse::rest(
         &format!("0.0.0.0:{}", port),
         setup_rest,
         Some(|| {
-            rmod::log!("🔥 {} running on port {}", app_name, port);
+            log!("🔥 {} running on port {}", app_name, port);
             lifecycle::before_graceful_shutdown(vec![before_graceful_shutdown]);
             lifecycle::start();
         }),
@@ -47,12 +47,12 @@ async fn main() {
 }
 
 async fn initialize() {
-    rmod::log!("🔥 application setup...");
+    log!("🔥 application setup...");
     setup::setup().await;
 }
 
 async fn before_graceful_shutdown() {
-    rmod::log!("🔥 graceful shutdown");
+    log!("🔥 graceful shutdown");
 }
 
 fn setup_rest(fuse: &mut Fuse) {

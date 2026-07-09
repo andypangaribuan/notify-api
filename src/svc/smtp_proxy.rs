@@ -6,9 +6,13 @@
  */
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use rmod::log;
-use rmod::tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use rmod::tokio::net::{TcpListener, TcpStream};
+use rmod::{
+    log,
+    tokio::{
+        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+        net::{TcpListener, TcpStream},
+    },
+};
 use std::sync::Arc;
 
 pub async fn start() {
