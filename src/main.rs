@@ -6,6 +6,7 @@
  */
 
 mod app;
+mod db;
 mod ext;
 mod handler;
 mod svc;
