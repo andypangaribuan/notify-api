@@ -24,3 +24,7 @@ pub async fn insert(entity: EmailRateLimit) -> Result<(), Error> {
 pub async fn fetch(where_clause: &str, args: PgArgs<EmailRateLimit>) -> Result<Option<EmailRateLimit>, Error> {
     REPO.fetch_on(DB_NOTIFY, where_clause, args).await
 }
+
+pub async fn execute(sql: &str, args: PgArgs<EmailRateLimit>) -> Result<rmod::postgres::PgQueryResult, Error> {
+    REPO.execute_on(DB_NOTIFY, sql, args).await
+}
