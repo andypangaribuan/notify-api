@@ -7,7 +7,7 @@
  * All Rights Reserved.
  */
 
-use crate::db::entity::EmailRateLimit;
+use crate::{db::entity::EmailRateLimit, ext::var::DB_NOTIFY};
 use rmod::db::{self, Error, PgArgs, Repo};
 
 const TABLE_NAME: &str = "email_rate_limit";
@@ -18,5 +18,9 @@ fn insert_args(entity: EmailRateLimit) -> PgArgs<EmailRateLimit> {
 }
 
 pub async fn insert(entity: EmailRateLimit) -> Result<(), Error> {
-    REPO.insert_on(&partner.db_key, insert_args(entity).with_default_opt(opt_table_name(partner))).await.map(|_| ())
+    REPO.insert_on(DB_NOTIFY, insert_args(entity)).await.map(|_| ())
+}
+
+pub async fn fetch(where_clause: &str, args: PgArgs<EmailRateLimit>) -> Result<Option<EmailRateLimit>, Error> {
+    REPO.fetch_on(DB_NOTIFY, where_clause, args).await
 }

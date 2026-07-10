@@ -18,12 +18,6 @@ pub fn timezone() -> Option<String> {
     env::string_opt("APP_TIMEZONE")
 }
 
-// pub fn crypto() -> (String, String) {
-//     let key = env::string("DB_CONN_KEY");
-//     let iv = env::string("DB_CONN_IV");
-//     (key, iv)
-// }
-
 pub fn db() -> (rmod::config::DbConfig, Option<rmod::config::DbConfig>) {
     let write = rmod::config::DbConfig {
         host: env::string("DB_HOST"),
@@ -58,7 +52,6 @@ pub fn db() -> (rmod::config::DbConfig, Option<rmod::config::DbConfig>) {
     (write, read)
 }
 
-
 pub fn smtp_listen_port() -> i16 {
     env::int_or("SMTP_LISTEN_PORT", 587)
 }
@@ -91,12 +84,7 @@ pub fn relay_credentials() -> (String, i16, String, String) {
 }
 
 pub fn smtp_allowed_ips() -> Option<Vec<String>> {
-    env::string_opt("SMTP_ALLOWED_IPS").map(|s| {
-        s.split(',')
-            .map(|ip| ip.trim().to_string())
-            .filter(|ip| !ip.is_empty())
-            .collect()
-    })
+    env::string_opt("SMTP_ALLOWED_IPS").map(|s| s.split(',').map(|ip| ip.trim().to_string()).filter(|ip| !ip.is_empty()).collect())
 }
 
 pub fn rate_limit() -> String {
@@ -110,5 +98,3 @@ pub fn rate_limit_override() -> Option<String> {
 pub fn rate_limit_time_range() -> Option<String> {
     env::string_opt("RATE_LIMIT_TIME_RANGE")
 }
-
-

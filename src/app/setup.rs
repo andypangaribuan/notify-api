@@ -5,6 +5,7 @@
  * All Rights Reserved.
  */
 
+use crate::ext::var::DB_NOTIFY;
 use rmod::config;
 
 pub(crate) async fn setup() {
@@ -14,7 +15,7 @@ pub(crate) async fn setup() {
     }
 
     let (write, read) = super::env::db();
-    config::db_setup("notify-db", write, read, 0, "active", "").await.unwrap_or_else(|err| {
-        panic!("failed to setup db config: {:#?}", err);
+    config::db_setup(DB_NOTIFY, write, read, 0, "active", "").await.unwrap_or_else(|err| {
+        panic!("failed to setup db notify: {:#?}", err);
     });
 }

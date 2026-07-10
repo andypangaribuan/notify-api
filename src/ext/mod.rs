@@ -7,7 +7,5 @@
 
 pub mod response;
 pub mod var;
-#[allow(unused_imports)]
 pub use crate::ext::response::FuseRContextExt;
-#[allow(unused_imports)]
 pub use crate::{dispatch_response, json_response};
