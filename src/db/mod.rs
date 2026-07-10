@@ -6,3 +6,6 @@
  * licenses restricting copying, distribution and decompilation.
  * All Rights Reserved.
  */
+
+pub mod entity;
+pub mod repo;
