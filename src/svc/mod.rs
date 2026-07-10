@@ -6,3 +6,4 @@
  */
 
 pub mod smtp_proxy;
+pub mod rate_limit;

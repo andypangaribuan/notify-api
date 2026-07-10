@@ -16,7 +16,12 @@ extern crate rmod as tokio;
 
 use app::{env, setup};
 use handler::private::{self, defer};
-use rmod::{fuse::Fuse, fuse::FuseHandler, fuse_endpoints, util, util::lifecycle, log};
+use rmod::{
+    fuse::FuseHandler,
+    fuse::{self, Fuse},
+    fuse_endpoints, log, util,
+    util::lifecycle,
+};
 
 #[rmod::main]
 async fn main() {
@@ -34,7 +39,7 @@ async fn main() {
     });
 
     log!("🔥 rest api setup...");
-    rmod::fuse::rest(
+    fuse::rest(
         &format!("0.0.0.0:{}", port),
         setup_rest,
         Some(|| {

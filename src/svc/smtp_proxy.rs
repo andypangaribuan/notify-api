@@ -32,6 +32,14 @@ pub async fn start() {
     loop {
         match listener.accept().await {
             Ok((stream, peer_addr)) => {
+                let client_ip = peer_addr.ip().to_string();
+                if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips() {
+                    if !allowed_ips.contains(&client_ip) {
+                        log!("🚫 client IP blocked: {}", client_ip);
+                        continue;
+                    }
+                }
+
                 log!("🔌 client connected: {}", peer_addr);
                 rmod::tokio::spawn(async move {
                     if let Err(e) = handle_connection(stream).await {
@@ -171,7 +179,36 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
         }
     }
 
-    // 2. Local authentication succeeded! Connect to SMTP relay server.
+    // 2. Check and reserve rate limit
+    let reserve_key = match crate::svc::rate_limit::check_and_reserve() {
+        Ok(key) => key,
+        Err(err_msg) => {
+            log!("🚫 Rate limit check failed: {}", err_msg);
+            if err_msg.contains("blocked") {
+                client_reader.get_mut().write_all(b"554 5.7.1 Sending not allowed by rate limit config\r\n").await?;
+            } else {
+                client_reader.get_mut().write_all(b"451 4.7.1 Rate limit exceeded. Try again later\r\n").await?;
+            }
+            client_reader.get_mut().flush().await?;
+            return Ok(());
+        }
+    };
+
+    // 3. Relay connection
+    if let Err(e) = relay_connection(client_reader).await {
+        log!("❌ Relay failed: {:?}", e);
+        if let Some(ref key) = reserve_key {
+            crate::svc::rate_limit::refund_reserve(key);
+        }
+        return Err(e);
+    }
+
+    Ok(())
+}
+
+async fn relay_connection(
+    mut client_reader: BufReader<TcpStream>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let provider = crate::app::env::email_provider();
     log!("🔥 connecting to {} SMTP relay server...", provider);
     let (relay_host, relay_port, relay_user, relay_pass) = crate::app::env::relay_credentials();
@@ -243,7 +280,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
         log!("❌ {} authentication failed!", provider);
         client_reader.get_mut().write_all(b"535 Relay authentication failed\r\n").await?;
         client_reader.get_mut().flush().await?;
-        return Ok(());
+        return Err("Relay authentication failed".into());
     }
 
     log!("🔥 {} authentication successful! Relay is ready.", provider);
