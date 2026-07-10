@@ -56,7 +56,7 @@ async fn main() {
 async fn initialize() {
     log!("🔥 application setup...");
     setup::setup().await;
-    crate::svc::rate_limit::initialize().await;
+    // crate::svc::rate_limit::initialize().await;
 }
 
 async fn before_graceful_shutdown() {
