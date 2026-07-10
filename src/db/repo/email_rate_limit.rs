@@ -16,3 +16,7 @@ const REPO: Repo<EmailRateLimit> = Repo::new(TABLE_NAME, "created_at, updated_at
 fn insert_args(entity: EmailRateLimit) -> PgArgs<EmailRateLimit> {
     db::args![entity.created_at, entity.updated_at, entity.deleted_at, entity.key, entity.count]
 }
+
+pub async fn insert(entity: EmailRateLimit) -> Result<(), Error> {
+    REPO.insert_on(&partner.db_key, insert_args(entity).with_default_opt(opt_table_name(partner))).await.map(|_| ())
+}
