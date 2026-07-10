@@ -206,9 +206,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
     Ok(())
 }
 
-async fn relay_connection(
-    mut client_reader: BufReader<TcpStream>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let provider = crate::app::env::email_provider();
     log!("🔥 connecting to {} SMTP relay server...", provider);
     let (relay_host, relay_port, relay_user, relay_pass) = crate::app::env::relay_credentials();
