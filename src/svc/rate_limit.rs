@@ -29,20 +29,22 @@ struct CountRow {
     count: i64,
 }
 
-/// Initializes the PostgreSQL rate limit table
+/// Initializes the PostgreSQL rate limit table using custom structure
 pub async fn initialize() {
     log!("🔥 initializing rate limit database table...");
     let args = sqlx::db::PgArgs::<()>::new();
     let create_table_query = "
-        CREATE TABLE IF NOT EXISTS notify_rate_limit (
+        CREATE TABLE IF NOT EXISTS email_rate_limit (
+            created_at TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
+            deleted_at TIMESTAMPTZ(6),
             key VARCHAR(255) PRIMARY KEY,
-            count BIGINT NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            count BIGINT NOT NULL
         );
     ";
     match sqlx::db::execute(create_table_query, args).await {
-        Ok(_) => log!("🔥 notify_rate_limit table initialized successfully."),
-        Err(e) => log!("❌ failed to create/initialize notify_rate_limit table: {:?}", e),
+        Ok(_) => log!("🔥 email_rate_limit table initialized successfully."),
+        Err(e) => log!("❌ failed to create/initialize email_rate_limit table: {:?}", e),
     }
 }
 
@@ -189,17 +191,17 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
         .unwrap_or_default()
         .as_nanos();
     if nano % 100 == 0 {
-        let cleanup_query = "DELETE FROM notify_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
+        let cleanup_query = "DELETE FROM email_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
         let args = sqlx::db::PgArgs::<()>::new();
         let _ = sqlx::db::execute(cleanup_query, args).await;
     }
 
     // 2. Perform atomic increment (UPSERT)
     let query_str = "
-        INSERT INTO notify_rate_limit (key, count, updated_at)
-        VALUES ($1, 1, NOW())
+        INSERT INTO email_rate_limit (key, count, created_at, updated_at)
+        VALUES ($1, 1, NOW(), NOW())
         ON CONFLICT (key) DO UPDATE
-        SET count = notify_rate_limit.count + 1,
+        SET count = email_rate_limit.count + 1,
             updated_at = NOW()
         RETURNING count
     ";
@@ -222,8 +224,9 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
         log!("🚫 Rate limit exceeded for window '{}' (count: {}, limit: {})", key, new_count, rate_limit.limit);
         // Rollback the count (decrement it)
         let rollback_query = "
-            UPDATE notify_rate_limit
-            SET count = GREATEST(0, count - 1)
+            UPDATE email_rate_limit
+            SET count = GREATEST(0, count - 1),
+                updated_at = NOW()
             WHERE key = $1
         ";
         let mut rollback_args = sqlx::db::PgArgs::<()>::new();
@@ -240,8 +243,9 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
 /// Decrements the counter for a reserved slot (call if sending fails)
 pub async fn refund_reserve(key: &str) {
     let refund_query = "
-        UPDATE notify_rate_limit
-        SET count = GREATEST(0, count - 1)
+        UPDATE email_rate_limit
+        SET count = GREATEST(0, count - 1),
+            updated_at = NOW()
         WHERE key = $1
     ";
     let mut args = sqlx::db::PgArgs::<()>::new();
