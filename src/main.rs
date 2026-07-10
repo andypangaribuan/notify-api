@@ -12,6 +12,7 @@ mod svc;
 
 extern crate rmod as chrono;
 extern crate rmod as serde;
+extern crate rmod as sqlx;
 extern crate rmod as tokio;
 
 use app::{env, setup};
@@ -54,6 +55,7 @@ async fn main() {
 async fn initialize() {
     log!("🔥 application setup...");
     setup::setup().await;
+    crate::svc::rate_limit::initialize().await;
 }
 
 async fn before_graceful_shutdown() {

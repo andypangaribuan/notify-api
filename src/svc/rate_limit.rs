@@ -5,11 +5,11 @@
  * All Rights Reserved.
  */
 
-use dashmap::DashMap;
 use rmod::log;
 use rmod::chrono::{self, DateTime, TimeZone};
 use rmod::chrono_tz::Tz;
-use std::sync::LazyLock;
+use std::time::SystemTime;
+use sqlx::db::FromRow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RateLimitUnit {
@@ -24,8 +24,27 @@ pub struct RateLimit {
     pub unit: Option<RateLimitUnit>,
 }
 
-// In-memory counter for rate limits
-static RATE_LIMIT_COUNTER: LazyLock<DashMap<String, i64>> = LazyLock::new(DashMap::new);
+#[derive(FromRow)]
+struct CountRow {
+    count: i64,
+}
+
+/// Initializes the PostgreSQL rate limit table
+pub async fn initialize() {
+    log!("🔥 initializing rate limit database table...");
+    let args = sqlx::db::PgArgs::<()>::new();
+    let create_table_query = "
+        CREATE TABLE IF NOT EXISTS notify_rate_limit (
+            key VARCHAR(255) PRIMARY KEY,
+            count BIGINT NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+    ";
+    match sqlx::db::execute(create_table_query, args).await {
+        Ok(_) => log!("🔥 notify_rate_limit table initialized successfully."),
+        Err(e) => log!("❌ failed to create/initialize notify_rate_limit table: {:?}", e),
+    }
+}
 
 /// Parses rate limit strings (e.g. "-1", "0", "10/m", "20/h", "50/d", "10m", "20h", "50d")
 pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
@@ -143,9 +162,9 @@ pub fn get_window_key(unit: &RateLimitUnit) -> String {
     }
 }
 
-/// Checks the rate limit and atomically reserves a slot.
+/// Checks the rate limit and atomically reserves a slot in Postgres.
 /// Returns Ok(Some(key)) if accepted (with key to refund on failure), Ok(None) if unlimited, Err(msg) if blocked/exceeded.
-pub fn check_and_reserve() -> Result<Option<String>, &'static str> {
+pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
     let Some(rate_limit) = get_active_rate_limit() else {
         return Ok(None); // Default to unlimited if parsing completely failed
     };
@@ -164,25 +183,72 @@ pub fn check_and_reserve() -> Result<Option<String>, &'static str> {
 
     let key = get_window_key(unit);
 
-    // Atomically check and increment
-    let mut current_count = RATE_LIMIT_COUNTER.entry(key.clone()).or_insert(0);
-    if *current_count >= rate_limit.limit {
-        log!("🚫 Rate limit exceeded for window '{}' (limit: {})", key, rate_limit.limit);
+    // 1. Clean up old entries asynchronously (1% of the time using nanoseconds modulo)
+    let nano = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    if nano % 100 == 0 {
+        let cleanup_query = "DELETE FROM notify_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
+        let args = sqlx::db::PgArgs::<()>::new();
+        let _ = sqlx::db::execute(cleanup_query, args).await;
+    }
+
+    // 2. Perform atomic increment (UPSERT)
+    let query_str = "
+        INSERT INTO notify_rate_limit (key, count, updated_at)
+        VALUES ($1, 1, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET count = notify_rate_limit.count + 1,
+            updated_at = NOW()
+        RETURNING count
+    ";
+
+    let mut args = sqlx::db::PgArgs::<CountRow>::new();
+    args.add(key.clone());
+
+    let row: CountRow = match sqlx::db::query(query_str, args).await {
+        Ok(r) => r,
+        Err(e) => {
+            log!("❌ rate limit database error during reserve: {:?}", e);
+            return Err("Rate limit check database error");
+        }
+    };
+
+    let new_count = row.count;
+
+    // 3. Check if count exceeds limit
+    if new_count > rate_limit.limit {
+        log!("🚫 Rate limit exceeded for window '{}' (count: {}, limit: {})", key, new_count, rate_limit.limit);
+        // Rollback the count (decrement it)
+        let rollback_query = "
+            UPDATE notify_rate_limit
+            SET count = GREATEST(0, count - 1)
+            WHERE key = $1
+        ";
+        let mut rollback_args = sqlx::db::PgArgs::<()>::new();
+        rollback_args.add(key.clone());
+        let _ = sqlx::db::execute(rollback_query, rollback_args).await;
+
         return Err("Rate limit exceeded. Please try again later.");
     }
 
-    *current_count += 1;
-    log!("📈 Reserved slot in window '{}' (count: {}/{})", key, *current_count, rate_limit.limit);
-
+    log!("📈 Reserved slot in Postgres window '{}' (count: {}/{})", key, new_count, rate_limit.limit);
     Ok(Some(key))
 }
 
 /// Decrements the counter for a reserved slot (call if sending fails)
-pub fn refund_reserve(key: &str) {
-    if let Some(mut count) = RATE_LIMIT_COUNTER.get_mut(key) {
-        if *count > 0 {
-            *count -= 1;
-            log!("📉 Refunded reserved slot for window '{}' (count: {})", key, *count);
-        }
+pub async fn refund_reserve(key: &str) {
+    let refund_query = "
+        UPDATE notify_rate_limit
+        SET count = GREATEST(0, count - 1)
+        WHERE key = $1
+    ";
+    let mut args = sqlx::db::PgArgs::<()>::new();
+    args.add(key.to_string());
+    if let Err(e) = sqlx::db::execute(refund_query, args).await {
+        log!("❌ failed to refund rate limit reserve for key '{}': {:?}", key, e);
+    } else {
+        log!("📉 Refunded Postgres reserved slot for window '{}'", key);
     }
 }

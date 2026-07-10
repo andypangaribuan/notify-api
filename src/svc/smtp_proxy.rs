@@ -55,7 +55,7 @@ pub async fn start() {
     }
 }
 
-async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut client_reader = BufReader::new(client_stream);
 
     // 1. Send greeting to client
@@ -180,7 +180,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
     }
 
     // 2. Check and reserve rate limit
-    let reserve_key = match crate::svc::rate_limit::check_and_reserve() {
+    let reserve_key = match crate::svc::rate_limit::check_and_reserve().await {
         Ok(key) => key,
         Err(err_msg) => {
             log!("🚫 Rate limit check failed: {}", err_msg);
@@ -198,7 +198,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
     if let Err(e) = relay_connection(client_reader).await {
         log!("❌ Relay failed: {:?}", e);
         if let Some(ref key) = reserve_key {
-            crate::svc::rate_limit::refund_reserve(key);
+            crate::svc::rate_limit::refund_reserve(key).await;
         }
         return Err(e);
     }
@@ -208,7 +208,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
 
 async fn relay_connection(
     mut client_reader: BufReader<TcpStream>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let provider = crate::app::env::email_provider();
     log!("🔥 connecting to {} SMTP relay server...", provider);
     let (relay_host, relay_port, relay_user, relay_pass) = crate::app::env::relay_credentials();

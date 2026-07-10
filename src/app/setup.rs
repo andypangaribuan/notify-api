@@ -12,4 +12,9 @@ pub(crate) async fn setup() {
     if let Some(timezone) = super::env::timezone() {
         config::timezone(&timezone);
     }
+
+    let (write, read) = super::env::db();
+    config::db_setup("notify-db", write, read, 0, "active", "").await.unwrap_or_else(|err| {
+        panic!("failed to setup db config: {:#?}", err);
+    });
 }
