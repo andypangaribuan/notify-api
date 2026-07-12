@@ -9,3 +9,4 @@
 
 pub mod email_rate_limit;
 pub mod email_registry;
+pub mod email_rules;
