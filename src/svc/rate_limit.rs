@@ -26,7 +26,6 @@ pub struct RateLimit {
     pub unit: Option<RateLimitUnit>,
 }
 
-
 /// Initializes the PostgreSQL rate limit table using custom structure
 // pub async fn initialize() {
 //     log!("🔥 initializing rate limit database table...");
@@ -188,13 +187,8 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
     }
 
     // 2. Perform atomic increment (UPSERT)
-    let entity = EmailRateLimit {
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-        deleted_at: None,
-        key: key.clone(),
-        count: 1,
-    };
+    let entity =
+        EmailRateLimit { created_at: chrono::Utc::now(), updated_at: chrono::Utc::now(), deleted_at: None, key: key.clone(), count: 1 };
 
     let row = match repo::email_rate_limit::insert(entity).await {
         Ok(r) => r,

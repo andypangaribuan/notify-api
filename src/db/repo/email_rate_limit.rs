@@ -26,9 +26,8 @@ pub async fn insert(entity: EmailRateLimit) -> Result<EmailRateLimit, Error> {
             updated_at = EXCLUDED.updated_at
         RETURNING created_at, updated_at, deleted_at, key, count
     ";
-    let mut args = insert_args(entity);
-    args.set_opt(Some(db::Opt::new().full_query(sql)));
-    REPO.query_on(DB_NOTIFY, "", args).await
+
+    REPO.query_on(DB_NOTIFY, "", insert_args(entity).with_default_opt(db::args_opt().full_query(sql))).await
 }
 
 pub async fn fetch(where_clause: &str, args: PgArgs<EmailRateLimit>) -> Result<Option<EmailRateLimit>, Error> {
