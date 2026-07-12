@@ -203,17 +203,15 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
     // 3. Check if count exceeds limit
     if new_count > rate_limit.limit {
         log!("🚫 Rate limit exceeded for window '{}' (count: {}, limit: {})", key, new_count, rate_limit.limit);
-        // Rollback the count (decrement it)
+
         let rollback_query = "
             UPDATE email_rate_limit
             SET count = GREATEST(0, count - 1),
                 updated_at = NOW()
             WHERE key = $1
         ";
-        let mut rollback_args = sqlx::db::PgArgs::<()>::new();
-        rollback_args.add(key.clone());
-        let _ = sqlx::db::execute(rollback_query, rollback_args).await;
 
+        let _ = repo::email_rate_limit::execute(rollback_query, db::args![key.clone()]).await;
         return Err("Rate limit exceeded. Please try again later.");
     }
 
