@@ -98,3 +98,15 @@ pub fn rate_limit_override() -> Option<String> {
 pub fn rate_limit_time_range() -> Option<String> {
     env::string_opt("RATE_LIMIT_TIME_RANGE")
 }
+
+pub fn sendgrid_api_key() -> Option<String> {
+    env::string_opt("SENDGRID_API_KEY")
+}
+
+pub fn sendgrid_mail_from() -> Option<String> {
+    env::string_opt("SENDGRID_MAIL_FROM")
+}
+
+pub fn sendgrid_reply_to() -> Option<String> {
+    env::string_opt("SENDGRID_REPLY_TO")
+}
