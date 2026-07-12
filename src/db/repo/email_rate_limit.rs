@@ -17,14 +17,24 @@ fn insert_args(entity: EmailRateLimit) -> PgArgs<EmailRateLimit> {
     db::args![entity.created_at, entity.updated_at, entity.deleted_at, entity.key, entity.count]
 }
 
-pub async fn insert(entity: EmailRateLimit) -> Result<(), Error> {
-    REPO.insert_on(DB_NOTIFY, insert_args(entity)).await.map(|_| ())
+pub async fn insert(entity: EmailRateLimit) -> Result<EmailRateLimit, Error> {
+    let sql = "
+        INSERT INTO email_rate_limit (created_at, updated_at, deleted_at, key, count)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (key) DO UPDATE
+        SET count = email_rate_limit.count + EXCLUDED.count,
+            updated_at = EXCLUDED.updated_at
+        RETURNING created_at, updated_at, deleted_at, key, count
+    ";
+    let mut args = insert_args(entity);
+    args.set_opt(Some(db::Opt::new().full_query(sql)));
+    REPO.query_on(DB_NOTIFY, "", args).await
 }
 
 pub async fn fetch(where_clause: &str, args: PgArgs<EmailRateLimit>) -> Result<Option<EmailRateLimit>, Error> {
     REPO.fetch_on(DB_NOTIFY, where_clause, args).await
 }
 
-pub async fn execute(sql: &str, args: PgArgs<(EmailRateLimit)>) -> Result<rmod::postgres::PgQueryResult, Error> {
+pub async fn execute(sql: &str, args: PgArgs<EmailRateLimit>) -> Result<rmod::postgres::PgQueryResult, Error> {
     REPO.execute_on(DB_NOTIFY, sql, args).await
 }

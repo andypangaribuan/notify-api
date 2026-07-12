@@ -5,11 +5,13 @@
  * All Rights Reserved.
  */
 
-use rmod::log;
-use rmod::chrono::{self, DateTime, TimeZone};
-use rmod::chrono_tz::Tz;
+use crate::db::{entity::EmailRateLimit, repo};
+use rmod::{
+    chrono::{self, DateTime, TimeZone},
+    chrono_tz::Tz,
+    db, log,
+};
 use std::time::SystemTime;
-use sqlx::db::FromRow;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RateLimitUnit {
@@ -24,10 +26,6 @@ pub struct RateLimit {
     pub unit: Option<RateLimitUnit>,
 }
 
-#[derive(FromRow)]
-struct CountRow {
-    count: i64,
-}
 
 /// Initializes the PostgreSQL rate limit table using custom structure
 // pub async fn initialize() {
@@ -77,10 +75,7 @@ pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
         _ => return Err(format!("unknown rate limit unit: {}", unit_str)),
     };
 
-    Ok(RateLimit {
-        limit,
-        unit: Some(unit),
-    })
+    Ok(RateLimit { limit, unit: Some(unit) })
 }
 
 /// Parses date string into timezone-aware DateTime
@@ -186,30 +181,22 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
     let key = get_window_key(unit);
 
     // 1. Clean up old entries asynchronously (1% of the time using nanoseconds modulo)
-    let nano = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
+    let nano = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos();
     if nano % 100 == 0 {
-        let cleanup_query = "DELETE FROM email_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
-        let args = sqlx::db::PgArgs::<()>::new();
-        let _ = sqlx::db::execute(cleanup_query, args).await;
+        let sql = "DELETE FROM email_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
+        let _ = repo::email_rate_limit::execute(sql, db::args![]).await;
     }
 
     // 2. Perform atomic increment (UPSERT)
-    let query_str = "
-        INSERT INTO email_rate_limit (key, count, created_at, updated_at)
-        VALUES ($1, 1, NOW(), NOW())
-        ON CONFLICT (key) DO UPDATE
-        SET count = email_rate_limit.count + 1,
-            updated_at = NOW()
-        RETURNING count
-    ";
+    let entity = EmailRateLimit {
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        deleted_at: None,
+        key: key.clone(),
+        count: 1,
+    };
 
-    let mut args = sqlx::db::PgArgs::<CountRow>::new();
-    args.add(key.clone());
-
-    let row: CountRow = match sqlx::db::query(query_str, args).await {
+    let row = match repo::email_rate_limit::insert(entity).await {
         Ok(r) => r,
         Err(e) => {
             log!("❌ rate limit database error during reserve: {:?}", e);
