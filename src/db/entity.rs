@@ -8,5 +8,7 @@
  */
 
 mod email_rate_limit;
+mod email_registry;
 
 pub use email_rate_limit::EmailRateLimit;
+pub use email_registry::EmailRegistry;
