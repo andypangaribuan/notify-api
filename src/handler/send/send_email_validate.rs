@@ -16,6 +16,7 @@ pub(super) async fn validate(
     req: &model::SendEmailRequest,
 ) -> Result<(), (StatusCode, std::sync::Arc<dyn std::any::Any + Send + Sync>)> {
     let missing_fields: Vec<_> = [
+        ("api_key", req.api_key.is_empty()),
         ("env_name", req.env_name.is_empty()),
         ("app_name", req.app_name.is_empty()),
         ("purpose_tag", req.purpose_tag.is_empty()),
@@ -36,6 +37,23 @@ pub(super) async fn validate(
             msg = "missing required fields",
             data = { "fields": missing_fields }
         ));
+    }
+
+    let mut is_valid_api_key = false;
+    let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-current");
+    if let Some(api_key) = api_key {
+        is_valid_api_key = api_key == req.api_key;
+    }
+
+    if !is_valid_api_key {
+        let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-expired");
+        if let Some(api_key) = api_key {
+            is_valid_api_key = api_key == req.api_key;
+        }
+    }
+
+    if !is_valid_api_key {
+        return Err(dispatch_response!(ctx, StatusCode::BAD_REQUEST, sub = "invalid_api_key", msg = "invalid api key"));
     }
 
     Ok(())

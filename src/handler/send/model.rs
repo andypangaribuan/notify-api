@@ -13,6 +13,7 @@ use std::collections::HashMap;
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rmod::serde")]
 pub struct SendEmailRequest {
+    pub api_key: String,
     pub env_name: String,
     pub app_name: String,
     pub purpose_tag: String,

@@ -55,7 +55,7 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
         missing_fields.push("body_type");
     }
 
-    send_email_validate::validate(ctx, &req).await;
+    send_email_validate::validate(ctx, &req).await?;
 
     if !missing_fields.is_empty() {
         return json_response!(
