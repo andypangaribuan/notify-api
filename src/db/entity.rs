@@ -7,10 +7,12 @@
  * All Rights Reserved.
  */
 
+mod appdata;
 mod email_rate_limit;
 mod email_registry;
 mod email_rules;
 
+pub use appdata::AppData;
 pub use email_rate_limit::EmailRateLimit;
 pub use email_registry::EmailRegistry;
 pub use email_rules::EmailRules;
