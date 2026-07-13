@@ -5,7 +5,11 @@
  * All Rights Reserved.
  */
 
-use crate::db::{entity::EmailRateLimit, repo};
+use crate::{
+    db::{entity::EmailRateLimit, repo},
+    ext::util,
+    model,
+};
 use rmod::{
     chrono::{self, DateTime, TimeZone},
     chrono_tz::Tz,
@@ -13,50 +17,50 @@ use rmod::{
 };
 use std::time::SystemTime;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RateLimitUnit {
-    Minute,
-    Hour,
-    Day,
-}
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub enum RateLimitUnit {
+//     Minute,
+//     Hour,
+//     Day,
+// }
 
-#[derive(Debug, Clone)]
-pub struct RateLimit {
-    pub limit: i64, // -1: unlimited, 0: blocked, >0: maximum emails
-    pub unit: Option<RateLimitUnit>,
-}
+// #[derive(Debug, Clone)]
+// pub struct RateLimit {
+//     pub limit: i64, // -1: unlimited, 0: blocked, >0: maximum emails
+//     pub unit: Option<RateLimitUnit>,
+// }
 
 /// Parses rate limit strings (e.g. "-1", "0", "10/m", "20/h", "50/d", "10m", "20h", "50d")
-pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
-    let s = s.trim().to_lowercase();
-    if s == "-1" {
-        return Ok(RateLimit { limit: -1, unit: None });
-    }
-    if s == "0" {
-        return Ok(RateLimit { limit: 0, unit: None });
-    }
+// pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
+//     let s = s.trim().to_lowercase();
+//     if s == "-1" {
+//         return Ok(RateLimit { limit: -1, unit: None });
+//     }
+//     if s == "0" {
+//         return Ok(RateLimit { limit: 0, unit: None });
+//     }
 
-    let (num_str, unit_str) = if let Some(idx) = s.find('/') {
-        (&s[..idx], &s[idx + 1..])
-    } else {
-        // Fallback to splitting digits from suffix (e.g., "10m")
-        let digit_count = s.chars().take_while(|c| c.is_ascii_digit()).count();
-        if digit_count == 0 {
-            return Err(format!("invalid rate limit format: {}", s));
-        }
-        (&s[..digit_count], &s[digit_count..])
-    };
+//     let (num_str, unit_str) = if let Some(idx) = s.find('/') {
+//         (&s[..idx], &s[idx + 1..])
+//     } else {
+//         // Fallback to splitting digits from suffix (e.g., "10m")
+//         let digit_count = s.chars().take_while(|c| c.is_ascii_digit()).count();
+//         if digit_count == 0 {
+//             return Err(format!("invalid rate limit format: {}", s));
+//         }
+//         (&s[..digit_count], &s[digit_count..])
+//     };
 
-    let limit = num_str.parse::<i64>().map_err(|e| e.to_string())?;
-    let unit = match unit_str.trim() {
-        "m" | "minute" | "minutes" => RateLimitUnit::Minute,
-        "h" | "hour" | "hours" => RateLimitUnit::Hour,
-        "d" | "day" | "days" => RateLimitUnit::Day,
-        _ => return Err(format!("unknown rate limit unit: {}", unit_str)),
-    };
+//     let limit = num_str.parse::<i64>().map_err(|e| e.to_string())?;
+//     let unit = match unit_str.trim() {
+//         "m" | "minute" | "minutes" => RateLimitUnit::Minute,
+//         "h" | "hour" | "hours" => RateLimitUnit::Hour,
+//         "d" | "day" | "days" => RateLimitUnit::Day,
+//         _ => return Err(format!("unknown rate limit unit: {}", unit_str)),
+//     };
 
-    Ok(RateLimit { limit, unit: Some(unit) })
-}
+//     Ok(RateLimit { limit, unit: Some(unit) })
+// }
 
 /// Parses date string into timezone-aware DateTime
 fn parse_datetime(s: &str, tz: &Tz) -> Option<DateTime<Tz>> {
@@ -81,7 +85,7 @@ fn parse_datetime(s: &str, tz: &Tz) -> Option<DateTime<Tz>> {
 }
 
 /// Resolves the currently active rate limit rule based on default and override settings
-pub fn get_active_rate_limit() -> Option<RateLimit> {
+pub fn get_active_rate_limit() -> Option<model::RateLimit> {
     let tz = rmod::time::now_tz().timezone();
 
     // 1. Check if rate limit override is active
@@ -93,7 +97,7 @@ pub fn get_active_rate_limit() -> Option<RateLimit> {
     {
         let now_tz = rmod::time::now_tz();
         if now_tz >= start_dt && now_tz <= end_dt {
-            match parse_rate_limit(&override_str) {
+            match util::parse_rate_limit(&override_str) {
                 Ok(limit) => {
                     log!("ℹ️ Rate limit override is active (using config: {})", override_str);
                     return Some(limit);
@@ -107,7 +111,7 @@ pub fn get_active_rate_limit() -> Option<RateLimit> {
 
     // 2. Fallback to normal rate limit
     let limit_str = crate::app::env::rate_limit();
-    match parse_rate_limit(&limit_str) {
+    match util::parse_rate_limit(&limit_str) {
         Ok(limit) => Some(limit),
         Err(e) => {
             log!("⚠️ failed to parse default rate_limit '{}': {}", limit_str, e);
@@ -117,19 +121,19 @@ pub fn get_active_rate_limit() -> Option<RateLimit> {
 }
 
 /// Generates the cache key for the current calendar window
-pub fn get_window_key(unit: &RateLimitUnit) -> String {
+pub fn get_window_key(unit: &model::RateLimitUnit) -> String {
     let now = rmod::time::now_tz();
 
     match unit {
-        RateLimitUnit::Minute => {
+        model::RateLimitUnit::Minute => {
             // Key: "minute:YYYY-MM-DD HH:MM"
             format!("rate:minute:{}", now.format("%Y-%m-%d %H:%M"))
         }
-        RateLimitUnit::Hour => {
+        model::RateLimitUnit::Hour => {
             // Key: "hour:YYYY-MM-DD HH"
             format!("rate:hour:{}", now.format("%Y-%m-%d %H"))
         }
-        RateLimitUnit::Day => {
+        model::RateLimitUnit::Day => {
             // Key: "day:YYYY-MM-DD"
             format!("rate:day:{}", now.format("%Y-%m-%d"))
         }

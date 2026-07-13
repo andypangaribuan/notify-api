@@ -8,5 +8,7 @@
  */
 
 mod appdata_value;
+mod rate_limit;
 
 pub use appdata_value::AppdataValue;
+pub use rate_limit::{RateLimit, RateLimitUnit};
