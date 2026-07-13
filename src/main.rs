@@ -10,6 +10,7 @@ mod cron;
 mod db;
 mod ext;
 mod handler;
+mod model;
 mod svc;
 
 extern crate rmod as chrono;
