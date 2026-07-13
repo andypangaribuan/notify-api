@@ -7,12 +7,12 @@
  * All Rights Reserved.
  */
 
-use rmod::serde::Deserialize;
+use rmod::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rmod::serde")]
-pub struct SendEmailRequest {
+pub(super) struct SendEmailRequest {
     pub api_key: Option<String>,
     pub env_name: Option<String>,
     pub app_name: Option<String>,
@@ -32,9 +32,63 @@ pub struct SendEmailRequest {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rmod::serde")]
-pub struct SendEmailRequestAttachment {
+pub(super) struct SendEmailRequestAttachment {
     pub filename: String,
     pub content: String,
     #[serde(rename = "type")]
     pub type_: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rmod::serde")]
+pub(super) struct SendGridEmail {
+    pub email: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rmod::serde")]
+pub(super) struct SendGridPersonalization {
+    pub to: Vec<SendGridEmail>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cc: Option<Vec<SendGridEmail>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bcc: Option<Vec<SendGridEmail>>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rmod::serde")]
+pub(super) struct SendGridContent {
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub value: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rmod::serde")]
+pub(super) struct SendGridAttachment {
+    pub content: String,
+    pub filename: String,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub type_: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disposition: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(crate = "rmod::serde")]
+pub(super) struct SendGridPayload {
+    pub personalizations: Vec<SendGridPersonalization>,
+    pub from: SendGridEmail,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<SendGridEmail>,
+    pub subject: String,
+    pub content: Vec<SendGridContent>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<SendGridAttachment>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_args: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categories: Option<Vec<String>>,
 }

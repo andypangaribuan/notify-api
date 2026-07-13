@@ -10,7 +10,7 @@
 use super::{model, send_email_validate};
 use crate::{
     ext::{dispatch_response, json_response},
-    handler::send::send_email_sendgrid,
+    handler::send::{send_email_gmail, send_email_sendgrid},
 };
 use rmod::{http::StatusCode, log};
 
@@ -33,8 +33,41 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     req.body_type = req.body_type.map(|v| v.trim().to_lowercase());
 
     let registry = send_email_validate::validate(ctx, &req).await?;
+    let sender_email = registry.sender_email.clone();
+    let email_conf = registry.email_conf.clone();
+    let email_provider = email_conf["provider"].as_str().ok_or_else(|| {
+        dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "provider not found", msg = "provider not found")
+    })?;
+    let email_channel = email_conf["channel"].as_str().ok_or_else(|| {
+        dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "channel not found", msg = "channel not found")
+    })?;
 
-    match send_email_sendgrid::send_email_sendgrid(req).await {
+    let res = if email_provider == "gmail" && email_channel == "smtp" {
+        let host = email_conf["host"].as_str().ok_or_else(|| {
+            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "host not found", msg = "host not found")
+        })?;
+        let port = email_conf["port"].as_u64().ok_or_else(|| {
+            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "port not found", msg = "port not found")
+        })?;
+        let password = email_conf["pass"].as_str().ok_or_else(|| {
+            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "password not found", msg = "password not found")
+        })?;
+        send_email_gmail::send_email_gmail(req, host, port as u16, &sender_email, password).await
+    } else if email_provider == "sendgrid" && email_channel == "api" {
+        let api_key = email_conf["api-key"].as_str().ok_or_else(|| {
+            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "api_key_not_found", msg = "api_key not found")
+        })?;
+        send_email_sendgrid::send_email_sendgrid(req, api_key, &sender_email).await
+    } else {
+        return Err(dispatch_response!(
+            ctx,
+            StatusCode::BAD_REQUEST,
+            sub = "email_provider_not_implemented",
+            msg = &format!("email provider '{}' is not implemented yet", email_provider)
+        ));
+    };
+
+    match res {
         Ok(_) => ctx.ok(StatusCode::OK, "email sent successfully"),
         Err(err) => {
             log!("❌ failed to send email: {}", err);

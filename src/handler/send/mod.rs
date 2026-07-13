@@ -9,6 +9,7 @@
 
 mod model;
 mod send_email;
+mod send_email_gmail;
 mod send_email_sendgrid;
 mod send_email_validate;
 
