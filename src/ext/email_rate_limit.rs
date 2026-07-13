@@ -118,6 +118,7 @@ fn get_active_rate_limit(env: &str, app_name: &str) -> Option<model::RateLimit> 
                 }
                 Err(e) => {
                     log!("⚠️ failed to parse rate_limit_override '{}': {}", override_str, e);
+                    return None;
                 }
             }
         }
