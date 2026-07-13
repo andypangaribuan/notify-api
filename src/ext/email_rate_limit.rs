@@ -12,9 +12,9 @@ use crate::{
     lookup, model,
 };
 use rmod::{
-    chrono::{self, DateTime, TimeZone},
     chrono_tz::Tz,
-    db, log, time,
+    db, log,
+    time::{self, DateTime},
 };
 
 pub async fn reserve(env: &str, app_name: &str) -> Result<Option<String>, &'static str> {
