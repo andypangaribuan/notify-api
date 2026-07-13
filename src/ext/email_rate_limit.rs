@@ -91,21 +91,8 @@ pub async fn rollback(key: &str) {
 }
 
 fn parse_datetime(s: &str, tz: &Tz) -> Option<DateTime<Tz>> {
-    let s = s.trim();
-
-    // 1. Try ISO-8601 / RFC3339 (with offset/Z)
-    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s.trim()) {
         return Some(dt.with_timezone(tz));
-    }
-
-    // 2. Try YYYY-MM-DDTHH:MM:SS
-    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
-        return tz.from_local_datetime(&naive).single();
-    }
-
-    // 3. Try YYYY-MM-DD HH:MM:SS
-    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
-        return tz.from_local_datetime(&naive).single();
     }
 
     None
