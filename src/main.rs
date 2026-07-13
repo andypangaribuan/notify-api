@@ -27,7 +27,7 @@ use handler::{
 use rmod::{
     fuse::FuseHandler,
     fuse::{self, Fuse},
-    fuse_endpoints, log, util,
+    fuse_endpoints, job, log, util,
     util::lifecycle,
 };
 
@@ -54,6 +54,7 @@ async fn main() {
             log!("🔥 {} running on port {}", app_name, port);
             lifecycle::before_graceful_shutdown(vec![before_graceful_shutdown]);
             lifecycle::start();
+            job::start();
         }),
     )
     .await;
@@ -65,10 +66,17 @@ async fn initialize() {
 
     rmod::log!("🔥 refresh appdata...");
     cron::refresh_appdata(true).await;
+
+    rmod::log!("🔥 cron setup...");
+    setup_cron();
 }
 
 async fn before_graceful_shutdown() {
     log!("🔥 graceful shutdown");
+}
+
+fn setup_cron() {
+    job::add("60s", || Box::pin(cron::refresh_appdata(false)), true, false);
 }
 
 fn setup_rest(fuse: &mut Fuse) {
