@@ -40,7 +40,7 @@ fn parse_datetime(s: &str, tz: &Tz) -> Option<DateTime<Tz>> {
 }
 
 /// Resolves the currently active rate limit rule based on default and override settings
-pub fn get_active_rate_limit() -> Option<model::RateLimit> {
+fn get_active_rate_limit() -> Option<model::RateLimit> {
     let tz = rmod::time::now_tz().timezone();
 
     // 1. Check if rate limit override is active
@@ -76,7 +76,7 @@ pub fn get_active_rate_limit() -> Option<model::RateLimit> {
 }
 
 /// Generates the cache key for the current calendar window
-pub fn get_window_key(unit: &model::RateLimitUnit) -> String {
+fn get_window_key(unit: &model::RateLimitUnit) -> String {
     let now = rmod::time::now_tz();
 
     match unit {
