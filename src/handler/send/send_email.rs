@@ -7,14 +7,16 @@
  * All Rights Reserved.
  */
 
-use super::model::SendEmailRequest;
-use crate::ext::{dispatch_response, json_response};
-use crate::handler::send::send_email_sendgrid::{self};
+use super::{model, send_email_validate};
+use crate::{
+    ext::{dispatch_response, json_response},
+    handler::send::send_email_sendgrid,
+};
 use rmod::{http::StatusCode, log};
 
 #[rmod::fuse_handler]
 pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
-    let mut req = ctx.json::<SendEmailRequest>().map_err(|e| {
+    let mut req = ctx.json::<model::SendEmailRequest>().map_err(|e| {
         dispatch_response!(ctx, StatusCode::BAD_REQUEST, sub = "invalid_request_body", msg = &format!("invalid request body: {:#?}", e))
     })?;
 
@@ -52,6 +54,8 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     if req.body_type.trim().is_empty() {
         missing_fields.push("body_type");
     }
+
+    send_email_validate::validate(ctx, &req).await;
 
     if !missing_fields.is_empty() {
         return json_response!(

@@ -10,5 +10,6 @@
 mod model;
 mod send_email;
 mod send_email_sendgrid;
+mod send_email_validate;
 
 pub use send_email::send_email;

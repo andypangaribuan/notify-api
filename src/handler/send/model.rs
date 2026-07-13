@@ -7,7 +7,7 @@
  * All Rights Reserved.
  */
 
-use rmod::{serde::Deserialize, serde::Serialize};
+use rmod::serde::Deserialize;
 use std::collections::HashMap;
 
 #[derive(Deserialize, Debug, Clone)]
