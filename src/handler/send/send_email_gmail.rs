@@ -30,15 +30,17 @@ pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, user
         }
     };
 
-    if let Err(e) = send_over_smtp(req, host, port, username, password).await {
-        log!("❌ send over smtp failed: {:?}", e);
-        if let Some(ref key) = reserve_key {
-            email_rate_limit::refund(key).await;
+    let res = send_over_smtp(req, host, port, username, password).await;
+    match res {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            log!("❌ send over smtp failed: {}", err);
+            if let Some(ref key) = reserve_key {
+                email_rate_limit::rollback(key).await;
+            }
+            Err(err)
         }
-        return Err(e);
     }
-
-    Ok(())
 }
 
 pub async fn send_over_smtp(req: SendEmailRequest, host: &str, port: u16, username: &str, password: &str) -> Result<(), String> {

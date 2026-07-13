@@ -9,7 +9,6 @@
 
 use crate::{
     db::{entity::EmailRateLimit, repo},
-    ext::util,
     lookup, model,
 };
 use rmod::{
@@ -17,7 +16,6 @@ use rmod::{
     chrono_tz::Tz,
     db, log, time,
 };
-use std::time::SystemTime;
 
 pub async fn reserve(env: &str, app_name: &str) -> Result<Option<String>, &'static str> {
     let Some(rate_limit) = get_active_rate_limit(env, app_name) else {
@@ -39,19 +37,16 @@ pub async fn reserve(env: &str, app_name: &str) -> Result<Option<String>, &'stat
     let key = get_window_key(env, app_name, unit);
     let entity = EmailRateLimit { created_at: time::now(), updated_at: time::now(), deleted_at: None, key: key.clone(), count: 1 };
     let row = match repo::email_rate_limit::insert(entity).await {
-        Ok(r) => r,
-        Err(e) => {
-            log!("❌ rate limit database error during reserve: {:?}", e);
-            return Err("Rate limit check database error");
+        Ok(row) => row,
+        Err(err) => {
+            log!("❌ rate limit database error during reserve: {:?}", err);
+            return Err("rate limit check database error");
         }
     };
 
     let new_count = row.count;
-
-    // 3. Check if count exceeds limit
     if new_count > rate_limit.limit {
-        log!("🚫 Rate limit exceeded for window '{}' (count: {}, limit: {})", key, new_count, rate_limit.limit);
-
+        log!("🚫 rate limit exceeded for window '{}' (count: {}, limit: {})", key, new_count, rate_limit.limit);
         let rollback_query = "
             UPDATE email_rate_limit
             SET count = GREATEST(0, count - 1),
@@ -60,26 +55,25 @@ pub async fn reserve(env: &str, app_name: &str) -> Result<Option<String>, &'stat
         ";
 
         let _ = repo::email_rate_limit::execute(rollback_query, db::args![key.clone()]).await;
-        return Err("Rate limit exceeded. Please try again later.");
+        return Err("rate limit exceeded, please try again later");
     }
 
-    log!("📈 Reserved slot in Postgres window '{}' (count: {}/{})", key, new_count, rate_limit.limit);
+    log!("📈 reserved slot in window '{}' (count: {}/{})", key, new_count, rate_limit.limit);
     Ok(Some(key))
 }
 
-pub async fn refund(key: &str) {
-    let refund_query = "
+pub async fn rollback(key: &str) {
+    let rollback_query = "
         UPDATE email_rate_limit
         SET count = GREATEST(0, count - 1),
             updated_at = NOW()
         WHERE key = $1
     ";
-    let mut args = sqlx::db::PgArgs::<()>::new();
-    args.add(key.to_string());
-    if let Err(e) = sqlx::db::execute(refund_query, args).await {
-        log!("❌ failed to refund rate limit reserve for key '{}': {:?}", key, e);
+
+    if let Err(e) = repo::email_rate_limit::execute(rollback_query, db::args![key.to_string()]).await {
+        log!("❌ failed to rollback rate limit reserve for key '{}': {:?}", key, e);
     } else {
-        log!("📉 Refunded Postgres reserved slot for window '{}'", key);
+        log!("📉 rollback reserved slot for window '{}'", key);
     }
 }
 

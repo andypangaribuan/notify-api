@@ -23,7 +23,7 @@ pub async fn insert(entity: EmailRateLimit) -> Result<EmailRateLimit, Error> {
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (key) DO UPDATE
         SET count = email_rate_limit.count + EXCLUDED.count,
-            updated_at = EXCLUDED.updated_at
+            updated_at = $2
         RETURNING created_at, updated_at, deleted_at, key, count
     ";
 
