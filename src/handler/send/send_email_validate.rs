@@ -8,22 +8,22 @@
  */
 
 use super::model;
-use crate::{db::entity, db::repo, dispatch_response, ext::FuseRContextExt, json_response, lookup};
-use rmod::{db, fuse::FuseRContext, http::StatusCode, time, util::support};
+use crate::{db::repo, dispatch_response};
+use rmod::{db, fuse::FuseRContext, http::StatusCode};
 
 pub(super) async fn validate(
     ctx: &mut FuseRContext,
     req: &model::SendEmailRequest,
 ) -> Result<(), (StatusCode, std::sync::Arc<dyn std::any::Any + Send + Sync>)> {
     let missing_fields: Vec<_> = [
-        ("api_key", req.api_key.is_empty()),
-        ("env_name", req.env_name.is_empty()),
-        ("app_name", req.app_name.is_empty()),
-        ("purpose_tag", req.purpose_tag.is_empty()),
-        ("send_to", req.send_to.is_empty()),
-        ("subject", req.subject.is_empty()),
-        ("body", req.body.is_empty()),
-        ("body_type", req.body_type.is_empty()),
+        ("api_key", req.api_key.as_ref().map_or(true, |v| v.is_empty())),
+        ("env_name", req.env_name.as_ref().map_or(true, |v| v.is_empty())),
+        ("app_name", req.app_name.as_ref().map_or(true, |v| v.is_empty())),
+        ("purpose_tag", req.purpose_tag.as_ref().map_or(true, |v| v.is_empty())),
+        ("send_to", req.send_to.as_ref().map_or(true, |v| v.is_empty())),
+        ("subject", req.subject.as_ref().map_or(true, |v| v.is_empty())),
+        ("body", req.body.as_ref().map_or(true, |v| v.is_empty())),
+        ("body_type", req.body_type.as_ref().map_or(true, |v| v.is_empty())),
     ]
     .into_iter()
     .filter_map(|(name, is_missing)| is_missing.then_some(name))
@@ -39,21 +39,60 @@ pub(super) async fn validate(
         ));
     }
 
-    let mut is_valid_api_key = false;
-    let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-current");
-    if let Some(api_key) = api_key {
-        is_valid_api_key = api_key == req.api_key;
+    let req_env_name = req.env_name.clone().unwrap_or_default();
+    let req_app_name = req.app_name.clone().unwrap_or_default();
+    let req_purpose_tag = req.purpose_tag.clone().unwrap_or_default();
+
+    let rules = repo::email_rules::fetch_all(
+        "allowed_apps=$1 OR ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))=$2 OR ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))=$3",
+        db::args!["*:*", format!("*:{}", req_app_name), format!("{}:{}", req_env_name, req_app_name)],
+    )
+    .await
+    .map_err(|e| {
+        dispatch_response!(
+            ctx,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            sub = "database_error",
+            msg = &format!("database query rules failed: {:?}", e)
+        )
+    })?;
+
+    if rules.is_empty() {
+        return Err(dispatch_response!(
+            ctx,
+            StatusCode::FORBIDDEN,
+            sub = "access_denied",
+            msg = "your application is not allowed to send email"
+        ));
     }
 
-    if !is_valid_api_key {
-        let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-expired");
-        if let Some(api_key) = api_key {
-            is_valid_api_key = api_key == req.api_key;
+    let mut tag_allowed = false;
+    for rule in rules {
+        if rule.tags.contains(&"#*".to_string()) {
+            tag_allowed = true;
+            break;
+        }
+
+        let tags = rule.tags.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<String>>();
+        for tag in tags {
+            if tag == req_purpose_tag {
+                tag_allowed = true;
+                break;
+            }
+        }
+
+        if tag_allowed {
+            break;
         }
     }
 
-    if !is_valid_api_key {
-        return Err(dispatch_response!(ctx, StatusCode::UNAUTHORIZED, sub = "invalid_api_key", msg = "invalid api key"));
+    if !tag_allowed {
+        return Err(dispatch_response!(
+            ctx,
+            StatusCode::FORBIDDEN,
+            sub = "access_denied",
+            msg = &format!("purpose tag '{}' is not allowed", req_purpose_tag)
+        ));
     }
 
     Ok(())

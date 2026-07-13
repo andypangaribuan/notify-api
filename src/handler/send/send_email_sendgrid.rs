@@ -64,6 +64,14 @@ struct SendGridPayload {
 }
 
 pub async fn send_email_sendgrid(req: SendEmailRequest) -> Result<(), String> {
+    let env_name = req.env_name.clone().unwrap_or_default();
+    let app_name = req.app_name.clone().unwrap_or_default();
+    let purpose_tag = req.purpose_tag.clone().unwrap_or_default();
+    let send_to = req.send_to.clone().unwrap_or_default();
+    let subject = req.subject.clone().unwrap_or_default();
+    let body = req.body.clone().unwrap_or_default();
+    let body_type = req.body_type.clone().unwrap_or_default();
+
     // 1. Fetch rules from database to match app_name and tag
     let rules = crate::db::repo::email_rules::fetch_all("deleted_at IS NULL", rmod::db::args![])
         .await
@@ -75,7 +83,7 @@ pub async fn send_email_sendgrid(req: SendEmailRequest) -> Result<(), String> {
         let app_list: Vec<&str> = rule.allowed_apps.split(',').map(|s| s.trim()).collect();
         let tag_list: Vec<&str> = rule.tags.split(',').map(|s| s.trim()).collect();
 
-        if app_list.contains(&req.app_name.as_str()) && tag_list.contains(&req.purpose_tag.as_str()) {
+        if app_list.contains(&app_name.as_str()) && tag_list.contains(&purpose_tag.as_str()) {
             if let Ok(Some(registry)) =
                 crate::db::repo::email_registry::fetch("uid = $1 AND deleted_at IS NULL", rmod::db::args![rule.email_registry_uid]).await
             {
@@ -119,18 +127,18 @@ pub async fn send_email_sendgrid(req: SendEmailRequest) -> Result<(), String> {
     };
 
     // 3. Build SendGrid API payload
-    let to_emails: Vec<SendGridEmail> = req.send_to.iter().map(|e| SendGridEmail { email: e.clone() }).collect();
+    let to_emails: Vec<SendGridEmail> = send_to.iter().map(|e| SendGridEmail { email: e.clone() }).collect();
     let cc_emails: Option<Vec<SendGridEmail>> = req.cc_to.map(|cc| cc.iter().map(|e| SendGridEmail { email: e.clone() }).collect());
     let bcc_emails: Option<Vec<SendGridEmail>> = req.bcc_to.map(|bcc| bcc.iter().map(|e| SendGridEmail { email: e.clone() }).collect());
 
     let personalization = SendGridPersonalization { to: to_emails, cc: cc_emails, bcc: bcc_emails };
 
-    let content_type = match req.body_type.to_lowercase().as_str() {
+    let content_type = match body_type.to_lowercase().as_str() {
         "html" | "text/html" => "text/html".to_string(),
         _ => "text/plain".to_string(),
     };
 
-    let content = vec![SendGridContent { type_: content_type, value: req.body.clone() }];
+    let content = vec![SendGridContent { type_: content_type, value: body.clone() }];
 
     let sg_reply_to = reply_to_email.map(|email| SendGridEmail { email });
 
@@ -147,15 +155,15 @@ pub async fn send_email_sendgrid(req: SendEmailRequest) -> Result<(), String> {
     });
 
     let mut custom_args = HashMap::new();
-    custom_args.insert("env_name".to_string(), req.env_name.clone());
-    custom_args.insert("app_name".to_string(), req.app_name.clone());
+    custom_args.insert("env_name".to_string(), env_name.clone());
+    custom_args.insert("app_name".to_string(), app_name.clone());
     if let Some(ref meta) = req.metadata {
         for (k, v) in meta {
             custom_args.insert(k.clone(), v.clone());
         }
     }
 
-    let mut categories = vec![req.env_name.clone(), req.app_name.clone(), req.purpose_tag.clone()];
+    let mut categories = vec![env_name.clone(), app_name.clone(), purpose_tag.clone()];
     if let Some(ref tag_list) = req.tags {
         for t in tag_list {
             categories.push(t.clone());
@@ -166,7 +174,7 @@ pub async fn send_email_sendgrid(req: SendEmailRequest) -> Result<(), String> {
         personalizations: vec![personalization],
         from: SendGridEmail { email: from_email },
         reply_to: sg_reply_to,
-        subject: req.subject.clone(),
+        subject: subject.clone(),
         content,
         attachments,
         headers: req.headers,

@@ -20,6 +20,7 @@ extern crate rmod as sqlx;
 extern crate rmod as tokio;
 
 use app::{env, setup};
+use handler::precondition::email_authentication;
 use handler::{
     private::{self, defer},
     send,
@@ -27,7 +28,7 @@ use handler::{
 use rmod::{
     fuse::FuseHandler,
     fuse::{self, Fuse},
-    fuse_endpoints, job, log, util,
+    fuse_endpoints, fuse_handlers, job, log, util,
     util::lifecycle,
 };
 
@@ -85,12 +86,13 @@ fn setup_rest(fuse: &mut Fuse) {
         vec![],
         fuse_endpoints! {
             "GET: /healthz" => private::health,
+            "GET: /caller-ip" => private::caller_ip,
         },
     );
 
     fuse.endpoints(
         defer as FuseHandler,
-        vec![],
+        fuse_handlers!([email_authentication]),
         fuse_endpoints! {
             "POST: /send/email" => send::send_email,
         },

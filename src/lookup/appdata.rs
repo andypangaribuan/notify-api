@@ -90,3 +90,81 @@ pub fn get_appdata<T: FromAppdataValue>(env_app: &str, key: &str) -> Option<T> {
     let store = var::appdatas().read().unwrap();
     store.get(env_app).and_then(|appdatas| appdatas.get(key)).and_then(|val| T::from_val(val))
 }
+
+pub trait FromAppdataVecValue: Sized {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>>;
+}
+
+impl FromAppdataVecValue for String {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
+        if let Some(ref list) = val.strings_values {
+            Some(list.clone())
+        } else if let Some(ref s) = val.string_value {
+            Some(s.split(separator).map(|x| x.trim().to_string()).collect())
+        } else {
+            None
+        }
+    }
+}
+
+impl FromAppdataVecValue for FCT {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
+        if let Some(ref list) = val.numeric_values {
+            Some(list.clone())
+        } else if let Some(ref s) = val.string_value {
+            s.split(separator)
+                .map(|x| x.trim().parse::<FCT>().ok())
+                .collect()
+        } else {
+            None
+        }
+    }
+}
+
+impl FromAppdataVecValue for i32 {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
+        if let Some(ref list) = val.int_values {
+            Some(list.clone())
+        } else if let Some(ref s) = val.string_value {
+            s.split(separator)
+                .map(|x| x.trim().parse::<i32>().ok())
+                .collect()
+        } else {
+            None
+        }
+    }
+}
+
+impl FromAppdataVecValue for u32 {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
+        if let Some(ref list) = val.int_values {
+            list.iter().map(|&x| u32::try_from(x).ok()).collect()
+        } else if let Some(ref s) = val.string_value {
+            s.split(separator)
+                .map(|x| x.trim().parse::<u32>().ok())
+                .collect()
+        } else {
+            None
+        }
+    }
+}
+
+impl FromAppdataVecValue for bool {
+    fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
+        if let Some(ref list) = val.bool_values {
+            Some(list.clone())
+        } else if let Some(ref s) = val.string_value {
+            s.split(separator)
+                .map(|x| x.trim().parse::<bool>().ok())
+                .collect()
+        } else {
+            None
+        }
+    }
+}
+
+pub fn get_vec_appdata<T: FromAppdataVecValue>(env_app: &str, key: &str, separator: &str) -> Option<Vec<T>> {
+    let store = var::appdatas().read().unwrap();
+    let val = store.get(env_app).and_then(|appdatas| appdatas.get(key))?;
+    T::from_vec_val(val, separator)
+}

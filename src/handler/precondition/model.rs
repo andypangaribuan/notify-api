@@ -12,7 +12,7 @@ use rmod::serde::Deserialize;
 #[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rmod::serde")]
 pub struct PreconditionEmailAuthenticationRequest {
-    pub api_key: String,
-    pub env_name: String,
-    pub app_name: String,
+    pub api_key: Option<String>,
+    pub env_name: Option<String>,
+    pub app_name: Option<String>,
 }

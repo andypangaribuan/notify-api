@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use rmod::FCT;
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AppdataValue {
     pub int_value: Option<i32>,
     pub numeric_value: Option<FCT>,
