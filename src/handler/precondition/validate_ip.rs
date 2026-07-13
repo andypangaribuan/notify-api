@@ -7,9 +7,7 @@
  * All Rights Reserved.
  */
 
-pub fn validate_ip(client_ip: &str, partner_uid: &str) -> bool {
-    let allowed_ips = lookup::get_appdata::<Vec<String>>(partner_uid, "allowed-ips").unwrap_or_default();
-
+pub fn validate_ip(client_ip: &str, allowed_ips: &Vec<String>) -> bool {
     if allowed_ips.is_empty() {
         return false;
     }

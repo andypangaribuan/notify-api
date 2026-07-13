@@ -62,7 +62,8 @@ pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
         return Err(dispatch_response!(ctx, StatusCode::UNAUTHORIZED, sub = "invalid_api_key", msg = "invalid api key"));
     }
 
-    validate_ip(&ctx.client_ip(), &format!("{}:{}", req.env_name, req.app_name)) {
+    let allowed_ips = lookup::get_appdata::<Vec<String>>(&format!("{}:{}", req.env_name, req.app_name), "email-allowed-ips").unwrap_or_default();
+    if validate_ip(&ctx.client_ip(), &allowed_ips) {
         return json_response!(
             ctx,
             StatusCode::FORBIDDEN,
