@@ -5,5 +5,5 @@
  * All Rights Reserved.
  */
 
-pub mod smtp_proxy;
 pub mod rate_limit;
+pub mod smtp_proxy;
