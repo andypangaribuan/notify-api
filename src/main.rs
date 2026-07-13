@@ -77,7 +77,7 @@ async fn before_graceful_shutdown() {
 }
 
 fn setup_cron() {
-    job::add("60s", || Box::pin(cron::refresh_appdata(false)), true, false);
+    job::add("60s", || Box::pin(cron::refresh_appdata(false)), true, true);
 }
 
 fn setup_rest(fuse: &mut Fuse) {
