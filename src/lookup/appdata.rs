@@ -112,9 +112,7 @@ impl FromAppdataVecValue for FCT {
         if let Some(ref list) = val.numeric_values {
             Some(list.clone())
         } else if let Some(ref s) = val.string_value {
-            s.split(separator)
-                .map(|x| x.trim().parse::<FCT>().ok())
-                .collect()
+            s.split(separator).map(|x| x.trim().parse::<FCT>().ok()).collect()
         } else {
             None
         }
@@ -126,9 +124,7 @@ impl FromAppdataVecValue for i32 {
         if let Some(ref list) = val.int_values {
             Some(list.clone())
         } else if let Some(ref s) = val.string_value {
-            s.split(separator)
-                .map(|x| x.trim().parse::<i32>().ok())
-                .collect()
+            s.split(separator).map(|x| x.trim().parse::<i32>().ok()).collect()
         } else {
             None
         }
@@ -140,9 +136,7 @@ impl FromAppdataVecValue for u32 {
         if let Some(ref list) = val.int_values {
             list.iter().map(|&x| u32::try_from(x).ok()).collect()
         } else if let Some(ref s) = val.string_value {
-            s.split(separator)
-                .map(|x| x.trim().parse::<u32>().ok())
-                .collect()
+            s.split(separator).map(|x| x.trim().parse::<u32>().ok()).collect()
         } else {
             None
         }
@@ -154,9 +148,7 @@ impl FromAppdataVecValue for bool {
         if let Some(ref list) = val.bool_values {
             Some(list.clone())
         } else if let Some(ref s) = val.string_value {
-            s.split(separator)
-                .map(|x| x.trim().parse::<bool>().ok())
-                .collect()
+            s.split(separator).map(|x| x.trim().parse::<bool>().ok()).collect()
         } else {
             None
         }
