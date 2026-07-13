@@ -9,7 +9,6 @@
 
 use super::{model, validate_ip};
 use crate::{
-    db::entity,
     ext::{dispatch_response, json_response},
     lookup,
 };
@@ -25,14 +24,11 @@ pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
     req.env_name = req.env_name.trim().to_lowercase();
     req.app_name = req.app_name.trim().to_lowercase();
 
-    let missing_fields: Vec<_> = [
-        ("api_key", req.api_key.is_empty()),
-        ("env_name", req.env_name.is_empty()),
-        ("app_name", req.app_name.is_empty()),
-    ]
-    .into_iter()
-    .filter_map(|(name, is_missing)| is_missing.then_some(name))
-    .collect();
+    let missing_fields: Vec<_> =
+        [("api_key", req.api_key.is_empty()), ("env_name", req.env_name.is_empty()), ("app_name", req.app_name.is_empty())]
+            .into_iter()
+            .filter_map(|(name, is_missing)| is_missing.then_some(name))
+            .collect();
 
     if !missing_fields.is_empty() {
         return Err(dispatch_response!(
@@ -43,7 +39,6 @@ pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
             data = { "fields": missing_fields }
         ));
     }
-
 
     let mut is_valid_api_key = false;
     let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-current");
@@ -62,7 +57,8 @@ pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
         return Err(dispatch_response!(ctx, StatusCode::UNAUTHORIZED, sub = "invalid_api_key", msg = "invalid api key"));
     }
 
-    let allowed_ips = lookup::get_appdata::<Vec<String>>(&format!("{}:{}", req.env_name, req.app_name), "email-allowed-ips").unwrap_or_default();
+    let allowed_ips =
+        lookup::get_appdata::<Vec<String>>(&format!("{}:{}", req.env_name, req.app_name), "email-allowed-ips").unwrap_or_default();
     if validate_ip(&ctx.client_ip(), &allowed_ips) {
         return json_response!(
             ctx,
