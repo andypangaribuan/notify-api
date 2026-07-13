@@ -7,23 +7,28 @@
  * All Rights Reserved.
  */
 
-use super::model;
-use crate::{db::entity, db::repo, dispatch_response, ext::FuseRContextExt, json_response, lookup};
-use rmod::{db, fuse::FuseRContext, http::StatusCode, time, util::support};
+use super::{model, validate_ip};
+use crate::{
+    db::entity,
+    ext::{dispatch_response, json_response},
+    lookup,
+};
+use rmod::http::StatusCode;
 
-pub(super) async fn validate(
-    ctx: &mut FuseRContext,
-    req: &model::SendEmailRequest,
-) -> Result<(), (StatusCode, std::sync::Arc<dyn std::any::Any + Send + Sync>)> {
+#[rmod::fuse_handler]
+pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
+    let mut req = ctx.json::<model::PreconditionEmailAuthenticationRequest>().map_err(|e| {
+        dispatch_response!(ctx, StatusCode::BAD_REQUEST, sub = "invalid_request_body", msg = &format!("invalid request body: {:#?}", e))
+    })?;
+
+    req.api_key = req.api_key.trim().to_string();
+    req.env_name = req.env_name.trim().to_lowercase();
+    req.app_name = req.app_name.trim().to_lowercase();
+
     let missing_fields: Vec<_> = [
         ("api_key", req.api_key.is_empty()),
         ("env_name", req.env_name.is_empty()),
         ("app_name", req.app_name.is_empty()),
-        ("purpose_tag", req.purpose_tag.is_empty()),
-        ("send_to", req.send_to.is_empty()),
-        ("subject", req.subject.is_empty()),
-        ("body", req.body.is_empty()),
-        ("body_type", req.body_type.is_empty()),
     ]
     .into_iter()
     .filter_map(|(name, is_missing)| is_missing.then_some(name))
@@ -38,6 +43,7 @@ pub(super) async fn validate(
             data = { "fields": missing_fields }
         ));
     }
+
 
     let mut is_valid_api_key = false;
     let api_key = lookup::get_appdata::<String>(&format!("{}:{}", req.env_name, req.app_name), "email-api-key-current");
@@ -56,5 +62,14 @@ pub(super) async fn validate(
         return Err(dispatch_response!(ctx, StatusCode::UNAUTHORIZED, sub = "invalid_api_key", msg = "invalid api key"));
     }
 
-    Ok(())
+    validate_ip(&ctx.client_ip(), &format!("{}:{}", req.env_name, req.app_name)) {
+        return json_response!(
+            ctx,
+            StatusCode::FORBIDDEN,
+            sub = "access_denied",
+            msg = "your current ip address is not permitted to access this resource"
+        );
+    }
+
+    ctx.ok(StatusCode::OK, "")
 }

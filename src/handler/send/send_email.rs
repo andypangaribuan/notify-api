@@ -20,6 +20,7 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
         dispatch_response!(ctx, StatusCode::BAD_REQUEST, sub = "invalid_request_body", msg = &format!("invalid request body: {:#?}", e))
     })?;
 
+    req.api_key = req.api_key.trim().to_string();
     req.env_name = req.env_name.trim().to_lowercase();
     req.app_name = req.app_name.trim().to_lowercase();
     req.purpose_tag = req.purpose_tag.trim().to_lowercase();

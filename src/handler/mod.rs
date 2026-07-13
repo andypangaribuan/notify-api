@@ -5,5 +5,6 @@
  * All Rights Reserved.
  */
 
+pub mod precondition;
 pub mod private;
 pub mod send;
