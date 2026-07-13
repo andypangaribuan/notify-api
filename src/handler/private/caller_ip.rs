@@ -7,9 +7,19 @@
  * All Rights Reserved.
  */
 
-use rmod::http::StatusCode;
+use crate::ext::json_response;
+use rmod::{http::StatusCode, log};
 
 #[rmod::fuse_handler]
 pub async fn caller_ip(ctx: &mut FuseRContext) -> FuseResult {
-    return ctx.ok(StatusCode::OK, ctx.client_ip());
+    let client_ip = ctx.client_ip();
+    let query = ctx.query();
+    let code = query.get("code");
+    if let Some(code) = code {
+        log!("#caller-ip: {}, code: {}", client_ip, code);
+    } else {
+        log!("#caller-ip: {}", client_ip);
+    }
+
+    return json_response!(ctx, StatusCode::OK, caller_ip = client_ip);
 }
