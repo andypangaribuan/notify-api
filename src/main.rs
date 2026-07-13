@@ -10,6 +10,7 @@ mod cron;
 mod db;
 mod ext;
 mod handler;
+mod lookup;
 mod model;
 mod svc;
 
