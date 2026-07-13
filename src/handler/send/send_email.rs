@@ -71,7 +71,7 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
         Ok(_) => json_response!(ctx, StatusCode::OK, sub = "success", msg = "email sent successfully"),
         Err(err) => {
             log!("❌ failed to send email: {}", err);
-            json_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "send_email_failed", msg = &err)
+            json_response!(ctx, StatusCode::BAD_REQUEST, sub = "send_email_failed", msg = &err)
         }
     }
 }

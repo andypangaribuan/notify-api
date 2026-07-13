@@ -35,6 +35,19 @@ pub async fn reserve(env: &str, app_name: &str) -> Result<Option<String>, &'stat
     };
 
     let key = get_window_key(env, app_name, unit);
+    match repo::email_rate_limit::fetch("key = $1", db::args![key.clone()]).await {
+        Ok(Some(email_rate_limit)) => {
+            if email_rate_limit.count >= rate_limit.limit {
+                return Err("rate limit exceeded, please try again later");
+            }
+        }
+        Ok(None) => {}
+        Err(err) => {
+            log!("❌ rate limit database error during fetch: {:?}", err);
+            return Err("rate limit check database error");
+        }
+    }
+
     let entity = EmailRateLimit { created_at: time::now(), updated_at: time::now(), deleted_at: None, key: key.clone(), count: 1 };
     let row = match repo::email_rate_limit::insert(entity).await {
         Ok(row) => row,
