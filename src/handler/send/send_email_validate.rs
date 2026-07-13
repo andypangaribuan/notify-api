@@ -8,7 +8,10 @@
  */
 
 use super::model;
-use crate::{db::repo, dispatch_response};
+use crate::{
+    db::{entity, repo},
+    dispatch_response,
+};
 use rmod::{db, fuse::FuseRContext, http::StatusCode};
 
 pub(super) async fn validate(
@@ -44,7 +47,7 @@ pub(super) async fn validate(
     let req_purpose_tag = req.purpose_tag.clone().unwrap_or_default();
 
     let rules = repo::email_rules::fetch_all(
-        "allowed_apps=$1 OR ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))=$2 OR ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))=$3",
+        "allowed_apps = $1 OR $2 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*')) OR $3 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))",
         db::args!["*:*", format!("*:{}", req_app_name), format!("{}:{}", req_env_name, req_app_name)],
     )
     .await
@@ -66,32 +69,45 @@ pub(super) async fn validate(
         ));
     }
 
-    let mut tag_allowed = false;
+    let mut email_registry_uids: Vec<String> = Vec::new();
     for rule in rules {
         if rule.tags.contains(&"#*".to_string()) {
-            tag_allowed = true;
-            break;
+            email_registry_uids.push(rule.email_registry_uid.clone());
         }
 
         let tags = rule.tags.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<String>>();
         for tag in tags {
             if tag == req_purpose_tag {
-                tag_allowed = true;
-                break;
+                email_registry_uids.push(rule.email_registry_uid.clone());
             }
-        }
-
-        if tag_allowed {
-            break;
         }
     }
 
-    if !tag_allowed {
+    if email_registry_uids.is_empty() {
         return Err(dispatch_response!(
             ctx,
             StatusCode::FORBIDDEN,
             sub = "access_denied",
             msg = &format!("purpose tag '{}' is not allowed", req_purpose_tag)
+        ));
+    }
+
+    let registries =
+        repo::email_registry::fetch_all("uid = ANY($1) AND is_active = true", db::args![email_registry_uids]).await.map_err(|e| {
+            dispatch_response!(
+                ctx,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                sub = "database_error",
+                msg = &format!("database query registries failed: {:?}", e)
+            )
+        })?;
+
+    if registries.is_empty() {
+        return Err(dispatch_response!(
+            ctx,
+            StatusCode::FORBIDDEN,
+            sub = "access_denied",
+            msg = "no active email configuration registry found"
         ));
     }
 

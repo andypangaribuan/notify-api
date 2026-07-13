@@ -20,6 +20,7 @@ pub struct EmailRegistry {
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
     pub uid: String,
+    pub is_active: bool,
     pub domain_name: String,
     pub sender_email: String,
     pub email_conf: json::Value,
