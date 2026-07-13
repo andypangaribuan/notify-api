@@ -26,25 +26,6 @@ pub struct RateLimit {
     pub unit: Option<RateLimitUnit>,
 }
 
-/// Initializes the PostgreSQL rate limit table using custom structure
-// pub async fn initialize() {
-//     log!("🔥 initializing rate limit database table...");
-//     let args = sqlx::db::PgArgs::<()>::new();
-//     let create_table_query = "
-//         CREATE TABLE IF NOT EXISTS email_rate_limit (
-//             created_at TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
-//             updated_at TIMESTAMPTZ(6) DEFAULT CURRENT_TIMESTAMP,
-//             deleted_at TIMESTAMPTZ(6),
-//             key VARCHAR(255) PRIMARY KEY,
-//             count BIGINT NOT NULL
-//         );
-//     ";
-//     match sqlx::db::execute(create_table_query, args).await {
-//         Ok(_) => log!("🔥 email_rate_limit table initialized successfully."),
-//         Err(e) => log!("❌ failed to create/initialize email_rate_limit table: {:?}", e),
-//     }
-// }
-
 /// Parses rate limit strings (e.g. "-1", "0", "10/m", "20/h", "50/d", "10m", "20h", "50d")
 pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
     let s = s.trim().to_lowercase();

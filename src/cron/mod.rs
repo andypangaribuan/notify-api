@@ -7,7 +7,5 @@
  * All Rights Reserved.
  */
 
-pub mod appdata;
-pub mod email_rate_limit;
-pub mod email_registry;
-pub mod email_rules;
+pub mod refresh_appdata;
+pub use refresh_appdata::refresh_appdata;

@@ -6,6 +6,7 @@
  */
 
 mod app;
+mod cron;
 mod db;
 mod ext;
 mod handler;
@@ -59,7 +60,9 @@ async fn main() {
 async fn initialize() {
     log!("🔥 application setup...");
     setup::setup().await;
-    // crate::svc::rate_limit::initialize().await;
+
+    rmod::log!("🔥 refresh appdata...");
+    cron::refresh_appdata(true).await;
 }
 
 async fn before_graceful_shutdown() {
