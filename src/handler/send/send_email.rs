@@ -32,7 +32,7 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     req.body = req.body.map(|v| v.trim().to_lowercase());
     req.body_type = req.body_type.map(|v| v.trim().to_lowercase());
 
-    send_email_validate::validate(ctx, &req).await?;
+    let registry = send_email_validate::validate(ctx, &req).await?;
 
     match send_email_sendgrid::send_email_sendgrid(req).await {
         Ok(_) => ctx.ok(StatusCode::OK, "email sent successfully"),

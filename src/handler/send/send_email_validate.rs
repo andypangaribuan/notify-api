@@ -17,7 +17,7 @@ use rmod::{db, fuse::FuseRContext, http::StatusCode};
 pub(super) async fn validate(
     ctx: &mut FuseRContext,
     req: &model::SendEmailRequest,
-) -> Result<(), (StatusCode, std::sync::Arc<dyn std::any::Any + Send + Sync>)> {
+) -> Result<entity::EmailRegistry, (StatusCode, std::sync::Arc<dyn std::any::Any + Send + Sync>)> {
     let missing_fields: Vec<_> = [
         ("api_key", req.api_key.as_ref().map_or(true, |v| v.is_empty())),
         ("env_name", req.env_name.as_ref().map_or(true, |v| v.is_empty())),
@@ -111,5 +111,5 @@ pub(super) async fn validate(
         ));
     }
 
-    Ok(())
+    Ok(registries.first().unwrap().clone())
 }
