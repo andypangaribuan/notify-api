@@ -40,7 +40,7 @@ pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, user
     let is_html = body_type == "html" || body_type == "text/html";
     let content_type = if is_html { "text/html" } else { "text/plain" };
 
-    if req.attachment.as_ref().map_or(true, |v| v.is_empty()) {
+    if req.attachment.as_ref().is_none_or(|v| v.is_empty()) {
         email_data.push_str(&format!("Content-Type: {}; charset=utf-8\r\n\r\n", content_type));
         email_data.push_str(&req.body.clone().unwrap_or_default());
     } else {
@@ -120,7 +120,7 @@ pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, user
     tls_reader.get_mut().flush().await.map_err(|e| format!("flush failed: {}", e))?;
     let pass_resp = read_smtp_response_lines(&mut tls_reader).await.map_err(|e| format!("failed to read password response: {}", e))?;
 
-    if !pass_resp.first().map_or(false, |line| line.starts_with("235")) {
+    if !pass_resp.first().is_some_and(|line| line.starts_with("235")) {
         return Err(format!("SMTP authentication failed: {:?}", pass_resp));
     }
 

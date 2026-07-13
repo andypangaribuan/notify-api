@@ -7,7 +7,7 @@
  * All Rights Reserved.
  */
 
-pub fn validate_ip(client_ip: &str, allowed_ips: &Vec<String>) -> bool {
+pub fn validate_ip(client_ip: &str, allowed_ips: &[String]) -> bool {
     if allowed_ips.is_empty() {
         return false;
     }

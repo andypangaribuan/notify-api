@@ -40,6 +40,7 @@ impl AppdataValue {
         }
     }
 
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             int_value: None,

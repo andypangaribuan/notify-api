@@ -87,22 +87,19 @@ pub fn get_active_rate_limit() -> Option<RateLimit> {
     // 1. Check if rate limit override is active
     if let Some(override_str) = crate::app::env::rate_limit_override()
         && let Some(range_str) = crate::app::env::rate_limit_time_range()
+        && let Some((start_str, end_str)) = range_str.split_once(',')
+        && let Some(start_dt) = parse_datetime(start_str, &tz)
+        && let Some(end_dt) = parse_datetime(end_str, &tz)
     {
-        if let Some((start_str, end_str)) = range_str.split_once(',') {
-            if let Some(start_dt) = parse_datetime(start_str, &tz)
-                && let Some(end_dt) = parse_datetime(end_str, &tz)
-            {
-                let now_tz = rmod::time::now_tz();
-                if now_tz >= start_dt && now_tz <= end_dt {
-                    match parse_rate_limit(&override_str) {
-                        Ok(limit) => {
-                            log!("ℹ️ Rate limit override is active (using config: {})", override_str);
-                            return Some(limit);
-                        }
-                        Err(e) => {
-                            log!("⚠️ failed to parse rate_limit_override '{}': {}", override_str, e);
-                        }
-                    }
+        let now_tz = rmod::time::now_tz();
+        if now_tz >= start_dt && now_tz <= end_dt {
+            match parse_rate_limit(&override_str) {
+                Ok(limit) => {
+                    log!("ℹ️ Rate limit override is active (using config: {})", override_str);
+                    return Some(limit);
+                }
+                Err(e) => {
+                    log!("⚠️ failed to parse rate_limit_override '{}': {}", override_str, e);
                 }
             }
         }
@@ -162,7 +159,7 @@ pub async fn check_and_reserve() -> Result<Option<String>, &'static str> {
 
     // 1. Clean up old entries asynchronously (1% of the time using nanoseconds modulo)
     let nano = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos();
-    if nano % 100 == 0 {
+    if nano.is_multiple_of(100) {
         let sql = "DELETE FROM email_rate_limit WHERE updated_at < NOW() - INTERVAL '2 days'";
         let _ = repo::email_rate_limit::execute(sql, db::args![]).await;
     }

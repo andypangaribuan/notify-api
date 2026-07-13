@@ -38,17 +38,17 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     let email_provider = email_conf["provider"].as_str().ok_or_else(|| {
         dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "provider not found", msg = "provider not found")
     })?;
-    let email_channel = email_conf["channel"].as_str().ok_or_else(|| {
-        dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "channel not found", msg = "channel not found")
-    })?;
+    let email_channel = email_conf["channel"]
+        .as_str()
+        .ok_or_else(|| dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "channel not found", msg = "channel not found"))?;
 
     let res = if email_provider == "gmail" && email_channel == "smtp" {
-        let host = email_conf["host"].as_str().ok_or_else(|| {
-            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "host not found", msg = "host not found")
-        })?;
-        let port = email_conf["port"].as_u64().ok_or_else(|| {
-            dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "port not found", msg = "port not found")
-        })?;
+        let host = email_conf["host"]
+            .as_str()
+            .ok_or_else(|| dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "host not found", msg = "host not found"))?;
+        let port = email_conf["port"]
+            .as_u64()
+            .ok_or_else(|| dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "port not found", msg = "port not found"))?;
         let password = email_conf["pass"].as_str().ok_or_else(|| {
             dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "password not found", msg = "password not found")
         })?;

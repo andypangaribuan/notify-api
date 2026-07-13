@@ -25,9 +25,9 @@ pub async fn email_authentication(ctx: &mut FuseRContext) -> FuseResult {
     req.app_name = req.app_name.map(|v| v.trim().to_lowercase());
 
     let missing_fields: Vec<_> = [
-        ("api_key", req.api_key.as_ref().map_or(true, |v| v.is_empty())),
-        ("env_name", req.env_name.as_ref().map_or(true, |v| v.is_empty())),
-        ("app_name", req.app_name.as_ref().map_or(true, |v| v.is_empty())),
+        ("api_key", req.api_key.as_ref().is_none_or(|v| v.is_empty())),
+        ("env_name", req.env_name.as_ref().is_none_or(|v| v.is_empty())),
+        ("app_name", req.app_name.as_ref().is_none_or(|v| v.is_empty())),
     ]
     .into_iter()
     .filter_map(|(name, is_missing)| is_missing.then_some(name))

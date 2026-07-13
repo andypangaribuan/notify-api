@@ -33,11 +33,11 @@ pub async fn start() {
         match listener.accept().await {
             Ok((stream, peer_addr)) => {
                 let client_ip = peer_addr.ip().to_string();
-                if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips() {
-                    if !allowed_ips.contains(&client_ip) {
-                        log!("🚫 client IP blocked: {}", client_ip);
-                        continue;
-                    }
+                if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips()
+                    && !allowed_ips.contains(&client_ip)
+                {
+                    log!("🚫 client IP blocked: {}", client_ip);
+                    continue;
                 }
 
                 log!("🔌 client connected: {}", peer_addr);

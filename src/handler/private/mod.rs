@@ -5,10 +5,10 @@
  * All Rights Reserved.
  */
 
+mod caller_ip;
 mod defer;
 mod health;
-mod caller_ip;
 
+pub use caller_ip::caller_ip;
 pub use defer::defer;
 pub use health::health;
-pub use caller_ip::caller_ip;

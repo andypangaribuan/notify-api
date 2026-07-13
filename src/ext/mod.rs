@@ -8,5 +8,4 @@
 pub mod response;
 pub mod script;
 pub mod var;
-pub use crate::ext::response::FuseRContextExt;
 pub use crate::{dispatch_response, json_response, unwrap_or_return};

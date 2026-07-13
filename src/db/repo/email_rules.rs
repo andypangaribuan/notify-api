@@ -13,10 +13,6 @@ use rmod::db::{Error, PgArgs, Repo};
 const TABLE_NAME: &str = "email_rules";
 const REPO: Repo<EmailRules> = Repo::new(TABLE_NAME, "created_at, updated_at, deleted_at, uid, email_registry_uid, allowed_apps, tags");
 
-pub async fn fetch(where_clause: &str, args: PgArgs<EmailRules>) -> Result<Option<EmailRules>, Error> {
-    REPO.fetch_on(DB_NOTIFY, where_clause, args).await
-}
-
 pub async fn fetch_all(where_clause: &str, args: PgArgs<EmailRules>) -> Result<Vec<EmailRules>, Error> {
     REPO.fetch_all_on(DB_NOTIFY, where_clause, args).await
 }

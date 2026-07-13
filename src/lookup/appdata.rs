@@ -99,10 +99,8 @@ impl FromAppdataVecValue for String {
     fn from_vec_val(val: &model::AppdataValue, separator: &str) -> Option<Vec<Self>> {
         if let Some(ref list) = val.strings_values {
             Some(list.clone())
-        } else if let Some(ref s) = val.string_value {
-            Some(s.split(separator).map(|x| x.trim().to_string()).collect())
         } else {
-            None
+            val.string_value.as_ref().map(|s| s.split(separator).map(|x| x.trim().to_string()).collect())
         }
     }
 }
