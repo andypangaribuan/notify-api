@@ -17,51 +17,6 @@ use rmod::{
 };
 use std::time::SystemTime;
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum RateLimitUnit {
-//     Minute,
-//     Hour,
-//     Day,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct RateLimit {
-//     pub limit: i64, // -1: unlimited, 0: blocked, >0: maximum emails
-//     pub unit: Option<RateLimitUnit>,
-// }
-
-/// Parses rate limit strings (e.g. "-1", "0", "10/m", "20/h", "50/d", "10m", "20h", "50d")
-// pub fn parse_rate_limit(s: &str) -> Result<RateLimit, String> {
-//     let s = s.trim().to_lowercase();
-//     if s == "-1" {
-//         return Ok(RateLimit { limit: -1, unit: None });
-//     }
-//     if s == "0" {
-//         return Ok(RateLimit { limit: 0, unit: None });
-//     }
-
-//     let (num_str, unit_str) = if let Some(idx) = s.find('/') {
-//         (&s[..idx], &s[idx + 1..])
-//     } else {
-//         // Fallback to splitting digits from suffix (e.g., "10m")
-//         let digit_count = s.chars().take_while(|c| c.is_ascii_digit()).count();
-//         if digit_count == 0 {
-//             return Err(format!("invalid rate limit format: {}", s));
-//         }
-//         (&s[..digit_count], &s[digit_count..])
-//     };
-
-//     let limit = num_str.parse::<i64>().map_err(|e| e.to_string())?;
-//     let unit = match unit_str.trim() {
-//         "m" | "minute" | "minutes" => RateLimitUnit::Minute,
-//         "h" | "hour" | "hours" => RateLimitUnit::Hour,
-//         "d" | "day" | "days" => RateLimitUnit::Day,
-//         _ => return Err(format!("unknown rate limit unit: {}", unit_str)),
-//     };
-
-//     Ok(RateLimit { limit, unit: Some(unit) })
-// }
-
 /// Parses date string into timezone-aware DateTime
 fn parse_datetime(s: &str, tz: &Tz) -> Option<DateTime<Tz>> {
     let s = s.trim();
