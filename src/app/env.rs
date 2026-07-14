@@ -56,28 +56,7 @@ pub fn smtp_listen_port() -> i16 {
     env::int_or("SMTP_LISTEN_PORT", 587)
 }
 
-#[allow(dead_code)]
-pub fn email_provider() -> String {
-    env::string_or("EMAIL_PROVIDER", "sendgrid").to_lowercase()
-}
 
-#[allow(dead_code)]
-pub fn relay_credentials() -> (String, i16, String, String) {
-    let provider = email_provider();
-    if provider == "gmail" {
-        let host = env::string_or("GMAIL_SMTP_HOST", "smtp.gmail.com");
-        let port: i16 = env::int_or("GMAIL_SMTP_PORT", 587);
-        let user = env::string("GMAIL_USER");
-        let pass = env::string("GMAIL_PASS");
-        (host, port, user, pass)
-    } else {
-        let host = env::string_or("SENDGRID_SMTP_HOST", "smtp.sendgrid.net");
-        let port: i16 = env::int_or("SENDGRID_SMTP_PORT", 587);
-        let user = "apikey".to_string();
-        let pass = env::string("SENDGRID_API_KEY");
-        (host, port, user, pass)
-    }
-}
 
 pub fn smtp_allowed_ips() -> Option<Vec<String>> {
     env::string_opt("SMTP_ALLOWED_IPS").map(|s| s.split(',').map(|ip| ip.trim().to_string()).filter(|ip| !ip.is_empty()).collect())

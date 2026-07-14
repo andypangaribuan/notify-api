@@ -356,7 +356,6 @@ where
     Ok(lines)
 }
 
-#[allow(dead_code)]
 async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::EmailSmtpCredential, String> {
     match repo::email_smtp_credential::fetch(
         "username = $1 AND password = $2",
