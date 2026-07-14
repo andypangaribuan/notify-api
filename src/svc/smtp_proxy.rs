@@ -22,12 +22,12 @@ pub async fn start() {
     let listener = match TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
-            log!("❌ failed to bind SMTP proxy to {}: {:?}", addr, e);
+            log!("❌ failed to bind smtp proxy to {}: {:?}", addr, e);
             return;
         }
     };
 
-    log!("🔥 SMTP proxy listening on {}...", addr);
+    log!("🔥 smtp proxy listening on {}...", addr);
 
     loop {
         match listener.accept().await {
@@ -59,7 +59,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
     let mut client_reader = BufReader::new(client_stream);
 
     // 1. Send greeting to client
-    client_reader.get_mut().write_all(b"220 notify-api SMTP Proxy Ready\r\n").await?;
+    client_reader.get_mut().write_all(b"220 notify-api smtp Proxy Ready\r\n").await?;
     client_reader.get_mut().flush().await?;
 
     // Load local authentication credentials
@@ -208,14 +208,14 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
 
 async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let provider = crate::app::env::email_provider();
-    log!("🔥 connecting to {} SMTP relay server...", provider);
+    log!("🔥 connecting to {} smtp relay server...", provider);
     let (relay_host, relay_port, relay_user, relay_pass) = crate::app::env::relay_credentials();
     let relay_addr = format!("{}:{}", relay_host, relay_port);
 
     let relay_tcp_stream = TcpStream::connect(&relay_addr).await?;
     let mut relay_reader = BufReader::new(relay_tcp_stream);
 
-    // Read greeting from SMTP relay
+    // Read greeting from smtp relay
     let lines = read_smtp_response_lines(&mut relay_reader).await?;
     log!("👉 {} Greeting: {:?}", provider, lines);
 
@@ -251,7 +251,7 @@ async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(),
     let lines = read_smtp_response_lines(&mut relay_tls_reader).await?;
     log!("👉 {} TLS EHLO: {:?}", provider, lines);
 
-    // Authenticate with SMTP relay using credentials
+    // Authenticate with smtp relay using credentials
     relay_tls_reader.get_mut().write_all(b"AUTH LOGIN\r\n").await?;
     relay_tls_reader.get_mut().flush().await?;
     let lines = read_smtp_response_lines(&mut relay_tls_reader).await?;
@@ -271,7 +271,7 @@ async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(),
     let lines = read_smtp_response_lines(&mut relay_tls_reader).await?;
     log!("👉 {} Password Response: {:?}", provider, lines);
 
-    // Check if SMTP relay authentication succeeded
+    // Check if smtp relay authentication succeeded
     let auth_success = lines.first().map(|line| line.starts_with("235")).unwrap_or(false);
 
     if !auth_success {
@@ -287,7 +287,7 @@ async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(),
     client_reader.get_mut().write_all(b"235 Authentication successful\r\n").await?;
     client_reader.get_mut().flush().await?;
 
-    // Now copy bidirectionally between client and SMTP relay.
+    // Now copy bidirectionally between client and smtp relay.
     let mut client_raw = client_reader.into_inner();
     let mut relay_raw = relay_tls_reader.into_inner();
 
@@ -305,7 +305,7 @@ where
         let mut line = String::new();
         let bytes_read = reader.read_line(&mut line).await?;
         if bytes_read == 0 {
-            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "EOF reached when reading SMTP response"));
+            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "EOF reached when reading smtp response"));
         }
         let trimmed = line.trim_end_matches("\r\n");
         lines.push(trimmed.to_string());

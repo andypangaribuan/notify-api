@@ -42,7 +42,7 @@ async fn main() {
 
     initialize().await;
 
-    // Spawn the SMTP proxy server task
+    // Spawn the smtp proxy server task
     rmod::tokio::spawn(async {
         svc::smtp_proxy::start().await;
     });

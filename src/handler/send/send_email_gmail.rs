@@ -98,9 +98,9 @@ pub async fn send_over_smtp(req: SendEmailRequest, host: &str, port: u16, userna
         email_data.push_str(&format!("--{}--\r\n", boundary));
     }
 
-    // 2. Connect to SMTP server
+    // 2. Connect to smtp server
     let addr = format!("{}:{}", host, port);
-    let tcp_stream = TcpStream::connect(&addr).await.map_err(|e| format!("failed to connect to SMTP server {}: {}", addr, e))?;
+    let tcp_stream = TcpStream::connect(&addr).await.map_err(|e| format!("failed to connect to smtp server {}: {}", addr, e))?;
     let mut reader = BufReader::new(tcp_stream);
 
     // Read Greeting
@@ -150,7 +150,7 @@ pub async fn send_over_smtp(req: SendEmailRequest, host: &str, port: u16, userna
     let pass_resp = read_smtp_response_lines(&mut tls_reader).await.map_err(|e| format!("failed to read password response: {}", e))?;
 
     if !pass_resp.first().is_some_and(|line| line.starts_with("235")) {
-        return Err(format!("SMTP authentication failed: {:?}", pass_resp));
+        return Err(format!("smtp authentication failed: {:?}", pass_resp));
     }
 
     // MAIL FROM
@@ -212,7 +212,7 @@ where
         let mut line = String::new();
         let bytes_read = reader.read_line(&mut line).await?;
         if bytes_read == 0 {
-            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "EOF reached when reading SMTP response"));
+            return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "EOF reached when reading smtp response"));
         }
         let trimmed = line.trim_end_matches("\r\n");
         lines.push(trimmed.to_string());
