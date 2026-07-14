@@ -56,12 +56,6 @@ pub fn smtp_listen_port() -> i16 {
     env::int_or("SMTP_LISTEN_PORT", 587)
 }
 
-pub fn local_credentials() -> (String, String) {
-    let username = env::string("NOTIFY_API_USERNAME");
-    let password = env::string("NOTIFY_API_PASSWORD");
-    (username, password)
-}
-
 pub fn email_provider() -> String {
     env::string_or("EMAIL_PROVIDER", "sendgrid").to_lowercase()
 }

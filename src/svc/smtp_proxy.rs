@@ -56,10 +56,6 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     client_reader.get_mut().write_all(b"220 notify smtp proxy ready\r\n").await?;
     client_reader.get_mut().flush().await?;
 
-    // Load local authentication credentials
-    let (expected_user, expected_pass) = crate::app::env::local_credentials();
-    // repo::email_smtp_credential::
-
     // Loop for handshake and authentication
     loop {
         let mut line = String::new();
@@ -122,7 +118,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
                 }
             };
 
-            if decoded_user == expected_user && decoded_pass == expected_pass {
+            if find_user(&decoded_user, &decoded_pass).await.is_ok() {
                 break;
             } else {
                 client_reader.get_mut().write_all(b"535 Authentication failed\r\n").await?;
@@ -157,7 +153,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
                 let user_str = String::from_utf8_lossy(parts[1]);
                 let pass_str = String::from_utf8_lossy(parts[2]);
 
-                if user_str == expected_user && pass_str == expected_pass {
+                if find_user(&user_str, &pass_str).await.is_ok() {
                     break;
                 }
             }
