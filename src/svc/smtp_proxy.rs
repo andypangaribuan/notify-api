@@ -216,8 +216,8 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     let smtp_config = match email_config {
         model::EmailConfig::Smtp(cfg) => cfg,
         model::EmailConfig::Api(_) => {
-            log!("🚫 API channel is not supported by SMTP proxy");
-            client_reader.get_mut().write_all(b"554 5.7.1 API channel is not supported by SMTP proxy\r\n").await?;
+            log!("🚫 api channel is not supported by smtp proxy");
+            client_reader.get_mut().write_all(b"554 5.7.1 API channel is not supported by smtp proxy\r\n").await?;
             client_reader.get_mut().flush().await?;
             return Ok(());
         }
