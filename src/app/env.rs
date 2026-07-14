@@ -14,6 +14,10 @@ pub fn app() -> (String, i16) {
     (app_name, port)
 }
 
+pub fn app_port_smtp() -> i16 {
+    env::int_or("APP_PORT_SMTP", 587)
+}
+
 pub fn timezone() -> Option<String> {
     env::string_opt("APP_TIMEZONE")
 }
@@ -50,16 +54,6 @@ pub fn db() -> (rmod::config::DbConfig, Option<rmod::config::DbConfig>) {
     })();
 
     (write, read)
-}
-
-pub fn smtp_listen_port() -> i16 {
-    env::int_or("SMTP_LISTEN_PORT", 587)
-}
-
-
-
-pub fn smtp_allowed_ips() -> Option<Vec<String>> {
-    env::string_opt("SMTP_ALLOWED_IPS").map(|s| s.split(',').map(|ip| ip.trim().to_string()).filter(|ip| !ip.is_empty()).collect())
 }
 
 pub fn rate_limit() -> String {

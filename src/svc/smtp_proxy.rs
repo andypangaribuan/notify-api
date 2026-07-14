@@ -6,7 +6,12 @@
  */
 
 use super::model;
-use crate::db::{entity, repo};
+use crate::{
+    app::env,
+    db::{entity, repo},
+    handler::precondition::validate_ip,
+    lookup,
+};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rmod::{
     db, log,
@@ -18,7 +23,7 @@ use rmod::{
 use std::sync::Arc;
 
 pub async fn start() {
-    let port = crate::app::env::smtp_listen_port();
+    let port = env::app_port_smtp();
     let addr = format!("0.0.0.0:{}", port);
 
     let listener = match TcpListener::bind(&addr).await {
@@ -177,12 +182,13 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
         }
     };
 
-    // Check if the client IP is allowed
-    if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips()
-        && !allowed_ips.contains(&client_ip)
-    {
-        log!("🚫 client IP blocked: {}", client_ip);
-        client_reader.get_mut().write_all(b"554 5.7.1 Access denied: IP address blocked\r\n").await?;
+    let allowed_ips =
+        lookup::get_vec_appdata::<String>(&format!("{}:{}", credential.env_name, credential.app_name), "email-allowed-ips", ",")
+            .unwrap_or_default();
+
+    if !validate_ip(&client_ip, &allowed_ips) {
+        log!("🚫 client ip blocked: {}", client_ip);
+        client_reader.get_mut().write_all(b"554 5.7.1 access denied: ip address blocked\r\n").await?;
         client_reader.get_mut().flush().await?;
         return Ok(());
     }
