@@ -28,8 +28,8 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     req.cc_to = req.cc_to.map(|v| v.iter().map(|v| v.trim().to_lowercase()).collect());
     req.bcc_to = req.bcc_to.map(|v| v.iter().map(|v| v.trim().to_lowercase()).collect());
     req.reply_to = req.reply_to.map(|v| v.trim().to_lowercase());
-    req.subject = req.subject.map(|v| v.trim().to_lowercase());
-    req.body = req.body.map(|v| v.trim().to_lowercase());
+    req.subject = req.subject.map(|v| v.trim().to_string());
+    req.body = req.body.map(|v| v.trim().to_string());
     req.body_type = req.body_type.map(|v| v.trim().to_lowercase());
 
     let registry = send_email_validate::validate(ctx, &req).await?;
