@@ -5,9 +5,10 @@
  * All Rights Reserved.
  */
 
+use crate::db::{entity, repo};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rmod::{
-    log,
+    db, log,
     tokio::{
         io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
         net::{TcpListener, TcpStream},
@@ -57,6 +58,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
 
     // Load local authentication credentials
     let (expected_user, expected_pass) = crate::app::env::local_credentials();
+    // repo::email_smtp_credential::
 
     // Loop for handshake and authentication
     loop {
@@ -322,4 +324,21 @@ where
         }
     }
     Ok(lines)
+}
+
+#[allow(dead_code)]
+async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::EmailSmtpCredential, String> {
+    match repo::email_smtp_credential::fetch(
+        "username = $1 AND password = $2",
+        db::args![decoded_user.to_string(), decoded_pass.to_string()],
+    )
+    .await
+    {
+        Ok(Some(credential)) => Ok(credential),
+        Ok(None) => Err("authentication failed: invalid credentials".to_string()),
+        Err(err) => {
+            log!("❌ database error during smtp credential fetch: {:?}", err);
+            Err("database query error".to_string())
+        }
+    }
 }
