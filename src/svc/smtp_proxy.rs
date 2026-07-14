@@ -383,18 +383,18 @@ async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<
     }
 
     for registry in registries {
-        let email_conf = registry.email_conf;
-        let provider = email_conf["provider"].as_str();
-        let channel = email_conf["channel"].as_str();
+        let conf = registry.email_conf;
+        let provider = conf["provider"].as_str();
+        let channel = conf["channel"].as_str();
 
         if let Some(provider) = provider
             && let Some(channel) = channel
         {
             if channel == "smtp" {
-                let host = email_conf["host"].as_str();
-                let port = email_conf["port"].as_u64();
-                let user = email_conf["user"].as_str();
-                let pass = email_conf["pass"].as_str();
+                let host = conf["host"].as_str();
+                let port = conf["port"].as_u64();
+                let user = conf["user"].as_str();
+                let pass = conf["pass"].as_str();
                 if let Some(host) = host
                     && let Some(port) = port
                     && let Some(user) = user
@@ -409,8 +409,8 @@ async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<
                     }));
                 }
             } else if channel == "api" {
-                let host = email_conf["host"].as_str();
-                let api_key = email_conf["api-key"].as_str();
+                let host = conf["host"].as_str();
+                let api_key = conf["api-key"].as_str();
                 if let Some(host) = host
                     && let Some(api_key) = api_key
                 {
