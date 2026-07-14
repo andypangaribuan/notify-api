@@ -338,3 +338,5 @@ async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::Ema
         }
     }
 }
+
+fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<>
