@@ -33,16 +33,9 @@ pub async fn start() {
         match listener.accept().await {
             Ok((stream, peer_addr)) => {
                 let client_ip = peer_addr.ip().to_string();
-                if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips()
-                    && !allowed_ips.contains(&client_ip)
-                {
-                    log!("🚫 client IP blocked: {}", client_ip);
-                    continue;
-                }
-
                 log!("🔌 client connected: {}", peer_addr);
                 rmod::tokio::spawn(async move {
-                    if let Err(e) = handle_connection(stream).await {
+                    if let Err(e) = handle_connection(stream, client_ip).await {
                         log!("❌ error handling client {}: {:?}", peer_addr, e);
                     }
                     log!("🔌 client disconnected: {}", peer_addr);
@@ -55,11 +48,11 @@ pub async fn start() {
     }
 }
 
-async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut client_reader = BufReader::new(client_stream);
 
     // 1. Send greeting to client
-    client_reader.get_mut().write_all(b"220 notify-api smtp Proxy Ready\r\n").await?;
+    client_reader.get_mut().write_all(b"220 notify smtp proxy ready\r\n").await?;
     client_reader.get_mut().flush().await?;
 
     // Load local authentication credentials
@@ -81,7 +74,7 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
         let upper_cmd = cmd.to_uppercase();
 
         if upper_cmd.starts_with("EHLO") || upper_cmd.starts_with("HELO") {
-            client_reader.get_mut().write_all(b"250-notify-api\r\n250-AUTH LOGIN PLAIN\r\n250 8BITMIME\r\n").await?;
+            client_reader.get_mut().write_all(b"250-notify\r\n250-AUTH LOGIN PLAIN\r\n250 8BITMIME\r\n").await?;
             client_reader.get_mut().flush().await?;
         } else if upper_cmd == "AUTH LOGIN" {
             // Prompt for Username
@@ -179,6 +172,16 @@ async fn handle_connection(client_stream: TcpStream) -> Result<(), Box<dyn std::
         }
     }
 
+    // Check if the client IP is allowed
+    if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips()
+        && !allowed_ips.contains(&client_ip)
+    {
+        log!("🚫 client IP blocked: {}", client_ip);
+        client_reader.get_mut().write_all(b"554 5.7.1 Access denied: IP address blocked\r\n").await?;
+        client_reader.get_mut().flush().await?;
+        return Ok(());
+    }
+
     // 2. Check and reserve rate limit
     let reserve_key = match crate::svc::rate_limit::check_and_reserve().await {
         Ok(key) => key,
@@ -220,7 +223,7 @@ async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(),
     log!("👉 {} Greeting: {:?}", provider, lines);
 
     // Send EHLO
-    relay_reader.get_mut().write_all(b"EHLO notify-api\r\n").await?;
+    relay_reader.get_mut().write_all(b"EHLO notify\r\n").await?;
     relay_reader.get_mut().flush().await?;
     let lines = read_smtp_response_lines(&mut relay_reader).await?;
     log!("👉 {} EHLO: {:?}", provider, lines);
@@ -244,7 +247,7 @@ async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(),
     let mut relay_tls_stream = connector.connect(server_name, relay_tcp_raw).await?;
 
     // Perform EHLO inside the TLS tunnel
-    relay_tls_stream.write_all(b"EHLO notify-api\r\n").await?;
+    relay_tls_stream.write_all(b"EHLO notify\r\n").await?;
     relay_tls_stream.flush().await?;
 
     let mut relay_tls_reader = BufReader::new(relay_tls_stream);

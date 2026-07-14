@@ -11,8 +11,10 @@ mod appdata;
 mod email_rate_limit;
 mod email_registry;
 mod email_rules;
+mod email_smtp_credential;
 
 pub use appdata::AppData;
 pub use email_rate_limit::EmailRateLimit;
 pub use email_registry::EmailRegistry;
 pub use email_rules::EmailRules;
+pub use email_smtp_credential::EmailSmtpCredential;
