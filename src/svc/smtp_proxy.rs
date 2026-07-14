@@ -213,7 +213,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
         Ok(cfg) => cfg,
         Err(err_msg) => {
             log!("🚫 failed to get email registry: {}", err_msg);
-            client_reader.get_mut().write_all(b"554 5.7.1 Transaction failed: email registry lookup failed\r\n").await?;
+            client_reader.get_mut().write_all(b"554 5.7.1 transaction failed: email registry lookup failed\r\n").await?;
             client_reader.get_mut().flush().await?;
             return Ok(());
         }
@@ -420,7 +420,7 @@ async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<
     }
 
     for registry in registries {
-        let conf = registry.email_conf;
+        let conf = &registry.email_conf;
         let provider = conf["provider"].as_str();
         let channel = conf["channel"].as_str();
 
@@ -430,18 +430,17 @@ async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<
             if channel == "smtp" {
                 let host = conf["host"].as_str();
                 let port = conf["port"].as_u64();
-                let user = conf["user"].as_str();
+                let user = conf["user"].as_str().map(|s| s.to_string()).unwrap_or_else(|| registry.sender_email.clone());
                 let pass = conf["pass"].as_str();
                 if let Some(host) = host
                     && let Some(port) = port
-                    && let Some(user) = user
                     && let Some(pass) = pass
                 {
                     return Ok(model::EmailConfig::Smtp(model::EmailSmtp {
                         provider: provider.to_string(),
                         host: host.to_string(),
                         port,
-                        user: user.to_string(),
+                        user,
                         pass: pass.to_string(),
                     }));
                 }

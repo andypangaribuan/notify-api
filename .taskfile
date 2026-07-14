@@ -107,12 +107,12 @@ function rmd {
 #: test swaks
 function cs {
   swaks --to iam.pangaribuan@gmail.com \
-      --from treasury-info@treasury.id \
+      --from "Treasury <no-reply@treasury.id>" \
       --server 127.0.0.1 \
       --port 587 \
       --auth LOGIN \
-      --auth-user notify-php-client \
-      --auth-password my-secure-password
+      --auth-user apikey \
+      --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
 }
 
 
