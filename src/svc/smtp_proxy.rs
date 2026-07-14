@@ -5,6 +5,7 @@
  * All Rights Reserved.
  */
 
+use super::model;
 use crate::db::{entity, repo};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use rmod::{
@@ -339,4 +340,56 @@ async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::Ema
     }
 }
 
-fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<>
+async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<model::EmailSmtp, String> {
+    let rules = match repo::email_rules::fetch_all(
+        "allowed_apps = $1 OR $2 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*')) OR $3 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))",
+        db::args![
+            "*:*".to_string(),
+            format!("*:{}", credential.app_name),
+            format!("{}:{}", credential.env_name, credential.app_name)
+        ]
+    ).await {
+        Ok(v) => v,
+        Err(e) => {
+            log!("❌ database error during fetch email_rules: {:?}", e);
+            return Err("database error".to_string());
+        }
+    };
+
+    if rules.is_empty() {
+        return Err("no email rules allowed for this credential".to_string());
+    }
+
+    let registry_uid = &rules.first().unwrap().email_registry_uid;
+    let registries = match repo::email_registry::fetch_all("uid = $1 AND is_active = true", db::args![registry_uid.clone()]).await {
+        Ok(v) => v,
+        Err(e) => {
+            log!("❌ database error during fetch email_registry: {:?}", e);
+            return Err("database error".to_string());
+        }
+    };
+
+    let Some(registry) = registries.into_iter().next() else {
+        return Err("no active email registry found".to_string());
+    };
+
+    let email_conf = registry.email_conf;
+    let host = email_conf["host"].as_str().ok_or_else(|| "host not found in email config".to_string())?.to_string();
+
+    let port = email_conf["port"].as_u64().ok_or_else(|| "port not found in email config".to_string())?;
+
+    let provider = email_conf["provider"].as_str().unwrap_or("");
+    let user = if provider == "sendgrid" {
+        "apikey".to_string()
+    } else {
+        email_conf["user"].as_str().map(|s| s.to_string()).unwrap_or_else(|| registry.sender_email.clone())
+    };
+
+    let pass = email_conf["pass"]
+        .as_str()
+        .or_else(|| email_conf["api-key"].as_str())
+        .ok_or_else(|| "password or api-key not found in email config".to_string())?
+        .to_string();
+
+    Ok(model::EmailSmtp { host, port, user, pass })
+}
