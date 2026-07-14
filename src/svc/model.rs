@@ -7,8 +7,8 @@
  * All Rights Reserved.
  */
 
-#[allow(dead_code)]
 pub struct EmailSmtp {
+    #[allow(dead_code)]
     pub provider: String,
     pub host: String,
     pub port: u64,

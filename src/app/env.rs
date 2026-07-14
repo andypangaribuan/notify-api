@@ -56,10 +56,12 @@ pub fn smtp_listen_port() -> i16 {
     env::int_or("SMTP_LISTEN_PORT", 587)
 }
 
+#[allow(dead_code)]
 pub fn email_provider() -> String {
     env::string_or("EMAIL_PROVIDER", "sendgrid").to_lowercase()
 }
 
+#[allow(dead_code)]
 pub fn relay_credentials() -> (String, i16, String, String) {
     let provider = email_provider();
     if provider == "gmail" {

@@ -58,7 +58,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     client_reader.get_mut().flush().await?;
 
     // Loop for handshake and authentication
-    loop {
+    let credential = loop {
         let mut line = String::new();
         let bytes_read = client_reader.read_line(&mut line).await?;
         if bytes_read == 0 {
@@ -119,11 +119,12 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
                 }
             };
 
-            if find_user(&decoded_user, &decoded_pass).await.is_ok() {
-                break;
-            } else {
-                client_reader.get_mut().write_all(b"535 Authentication failed\r\n").await?;
-                client_reader.get_mut().flush().await?;
+            match find_user(&decoded_user, &decoded_pass).await {
+                Ok(cred) => break cred,
+                Err(_) => {
+                    client_reader.get_mut().write_all(b"535 Authentication failed\r\n").await?;
+                    client_reader.get_mut().flush().await?;
+                }
             }
         } else if upper_cmd.starts_with("AUTH PLAIN") {
             let payload_b64 = if upper_cmd == "AUTH PLAIN" {
@@ -150,17 +151,22 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
 
             // Format of AUTH PLAIN decoded string is: \0username\0password
             let parts: Vec<&[u8]> = decoded_bytes.split(|&b| b == 0).collect();
+            let mut authenticated = None;
             if parts.len() >= 3 {
                 let user_str = String::from_utf8_lossy(parts[1]);
                 let pass_str = String::from_utf8_lossy(parts[2]);
 
-                if find_user(&user_str, &pass_str).await.is_ok() {
-                    break;
+                if let Ok(cred) = find_user(&user_str, &pass_str).await {
+                    authenticated = Some(cred);
                 }
             }
 
-            client_reader.get_mut().write_all(b"535 Authentication failed\r\n").await?;
-            client_reader.get_mut().flush().await?;
+            if let Some(cred) = authenticated {
+                break cred;
+            } else {
+                client_reader.get_mut().write_all(b"535 Authentication failed\r\n").await?;
+                client_reader.get_mut().flush().await?;
+            }
         } else if upper_cmd == "QUIT" {
             client_reader.get_mut().write_all(b"221 Bye\r\n").await?;
             client_reader.get_mut().flush().await?;
@@ -169,7 +175,7 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
             client_reader.get_mut().write_all(b"530 5.7.0 Must authenticate first\r\n").await?;
             client_reader.get_mut().flush().await?;
         }
-    }
+    };
 
     // Check if the client IP is allowed
     if let Some(allowed_ips) = crate::app::env::smtp_allowed_ips()
@@ -196,8 +202,29 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
         }
     };
 
+    // Get email registry details
+    let email_config = match get_email_registry(&credential).await {
+        Ok(cfg) => cfg,
+        Err(err_msg) => {
+            log!("🚫 failed to get email registry: {}", err_msg);
+            client_reader.get_mut().write_all(b"554 5.7.1 Transaction failed: email registry lookup failed\r\n").await?;
+            client_reader.get_mut().flush().await?;
+            return Ok(());
+        }
+    };
+
+    let smtp_config = match email_config {
+        model::EmailConfig::Smtp(cfg) => cfg,
+        model::EmailConfig::Api(_) => {
+            log!("🚫 API channel is not supported by SMTP proxy");
+            client_reader.get_mut().write_all(b"554 5.7.1 API channel is not supported by SMTP proxy\r\n").await?;
+            client_reader.get_mut().flush().await?;
+            return Ok(());
+        }
+    };
+
     // 3. Relay connection
-    if let Err(e) = relay_connection(client_reader).await {
+    if let Err(e) = relay_connection(client_reader, smtp_config).await {
         log!("❌ Relay failed: {:?}", e);
         if let Some(ref key) = reserve_key {
             crate::svc::rate_limit::refund_reserve(key).await;
@@ -208,10 +235,16 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     Ok(())
 }
 
-async fn relay_connection(mut client_reader: BufReader<TcpStream>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let provider = crate::app::env::email_provider();
+async fn relay_connection(
+    mut client_reader: BufReader<TcpStream>,
+    smtp_config: model::EmailSmtp,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let provider = smtp_config.provider;
     log!("🔥 connecting to {} smtp relay server...", provider);
-    let (relay_host, relay_port, relay_user, relay_pass) = crate::app::env::relay_credentials();
+    let relay_host = smtp_config.host;
+    let relay_port = smtp_config.port;
+    let relay_user = smtp_config.user;
+    let relay_pass = smtp_config.pass;
     let relay_addr = format!("{}:{}", relay_host, relay_port);
 
     let relay_tcp_stream = TcpStream::connect(&relay_addr).await?;
@@ -340,7 +373,6 @@ async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::Ema
     }
 }
 
-#[allow(dead_code)]
 async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<model::EmailConfig, String> {
     let rules = match repo::email_rules::fetch_all(
         "allowed_apps = $1 OR $2 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*')) OR $3 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))",
