@@ -340,7 +340,8 @@ async fn find_user(decoded_user: &str, decoded_pass: &str) -> Result<entity::Ema
     }
 }
 
-async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<model::EmailSmtp, String> {
+#[allow(dead_code)]
+async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<model::EmailConfig, String> {
     let rules = match repo::email_rules::fetch_all(
         "allowed_apps = $1 OR $2 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*')) OR $3 = ANY(regexp_split_to_array(allowed_apps, '\\s*,\\s*'))",
         db::args![
@@ -383,28 +384,42 @@ async fn get_email_registry(credential: &entity::EmailSmtpCredential) -> Result<
 
     for registry in registries {
         let email_conf = registry.email_conf;
-        let email_provider = email_conf["provider"].as_str();
-        let email_channel = email_conf["channel"].as_str();
+        let provider = email_conf["provider"].as_str();
+        let channel = email_conf["channel"].as_str();
 
-        if let Some(email_provider) = email_provider
-            && let Some(email_channel) = email_channel
-            && email_channel == "smtp"
+        if let Some(provider) = provider
+            && let Some(channel) = channel
         {
-            let email_host = email_conf["host"].as_str();
-            let email_port = email_conf["port"].as_u64();
-            let email_user = email_conf["user"].as_str();
-            let email_pass = email_conf["pass"].as_str();
-            if let Some(email_host) = email_host
-                && let Some(email_port) = email_port
-                && let Some(email_user) = email_user
-                && let Some(email_pass) = email_pass
-            {
-                return Ok(model::EmailSmtp {
-                    host: email_host.to_string(),
-                    port: email_port,
-                    user: email_user.to_string(),
-                    pass: email_pass.to_string(),
-                });
+            if channel == "smtp" {
+                let host = email_conf["host"].as_str();
+                let port = email_conf["port"].as_u64();
+                let user = email_conf["user"].as_str();
+                let pass = email_conf["pass"].as_str();
+                if let Some(host) = host
+                    && let Some(port) = port
+                    && let Some(user) = user
+                    && let Some(pass) = pass
+                {
+                    return Ok(model::EmailConfig::Smtp(model::EmailSmtp {
+                        provider: provider.to_string(),
+                        host: host.to_string(),
+                        port,
+                        user: user.to_string(),
+                        pass: pass.to_string(),
+                    }));
+                }
+            } else if channel == "api" {
+                let host = email_conf["host"].as_str();
+                let api_key = email_conf["api-key"].as_str();
+                if let Some(host) = host
+                    && let Some(api_key) = api_key
+                {
+                    return Ok(model::EmailConfig::Api(model::EmailApi {
+                        provider: provider.to_string(),
+                        host: host.to_string(),
+                        api_key: api_key.to_string(),
+                    }));
+                }
             }
         }
     }
