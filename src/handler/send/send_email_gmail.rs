@@ -15,7 +15,14 @@ use rmod::tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use rmod::tokio::net::TcpStream;
 use std::sync::Arc;
 
-pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, username: &str, password: &str) -> Result<(), String> {
+pub async fn send_email_gmail(
+    req: SendEmailRequest,
+    sender_name: &str,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+) -> Result<(), String> {
     let req_env_name = req.env_name.as_deref().unwrap_or("");
     let req_app_name = req.app_name.as_deref().unwrap_or("");
     let reserve_key = match email_rate_limit::reserve(req_env_name, req_app_name).await {
@@ -30,7 +37,7 @@ pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, user
         }
     };
 
-    let res = send_over_smtp(req, host, port, username, password).await;
+    let res = send_over_smtp(req, sender_name, host, port, username, password).await;
     match res {
         Ok(_) => Ok(()),
         Err(err) => {
@@ -43,10 +50,21 @@ pub async fn send_email_gmail(req: SendEmailRequest, host: &str, port: u16, user
     }
 }
 
-pub async fn send_over_smtp(req: SendEmailRequest, host: &str, port: u16, username: &str, password: &str) -> Result<(), String> {
+pub async fn send_over_smtp(
+    req: SendEmailRequest,
+    sender_name: &str,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+) -> Result<(), String> {
     // 1. Build MIME email raw data
     let mut email_data = String::new();
-    email_data.push_str(&format!("From: {}\r\n", username));
+    if sender_name.is_empty() {
+        email_data.push_str(&format!("From: {}\r\n", username));
+    } else {
+        email_data.push_str(&format!("From: \"{}\" <{}>\r\n", sender_name, username));
+    }
     if let Some(ref to) = req.send_to {
         email_data.push_str(&format!("To: {}\r\n", to.join(", ")));
     }

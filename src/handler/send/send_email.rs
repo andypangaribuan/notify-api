@@ -33,6 +33,7 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
     req.body_type = req.body_type.map(|v| v.trim().to_lowercase());
 
     let registry = send_email_validate::validate(ctx, &req).await?;
+    let sender_name = registry.sender_name.clone();
     let sender_email = registry.sender_email.clone();
     let email_conf = registry.email_conf.clone();
     let email_provider = email_conf["provider"].as_str().ok_or_else(|| {
@@ -52,12 +53,12 @@ pub async fn send_email(ctx: &mut FuseRContext) -> FuseResult {
         let password = email_conf["pass"].as_str().ok_or_else(|| {
             dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "password not found", msg = "password not found")
         })?;
-        send_email_gmail::send_email_gmail(req, host, port as u16, &sender_email, password).await
+        send_email_gmail::send_email_gmail(req, &sender_name, host, port as u16, &sender_email, password).await
     } else if email_provider == "sendgrid" && email_channel == "api" {
         let api_key = email_conf["api-key"].as_str().ok_or_else(|| {
             dispatch_response!(ctx, StatusCode::INTERNAL_SERVER_ERROR, sub = "api_key_not_found", msg = "api_key not found")
         })?;
-        send_email_sendgrid::send_email_sendgrid(req, api_key, &sender_email).await
+        send_email_sendgrid::send_email_sendgrid(req, api_key, &sender_name, &sender_email).await
     } else {
         return Err(dispatch_response!(
             ctx,

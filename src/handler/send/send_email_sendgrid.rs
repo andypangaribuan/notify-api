@@ -8,7 +8,7 @@
 use super::model;
 use std::collections::HashMap;
 
-pub async fn send_email_sendgrid(req: model::SendEmailRequest, api_key: &str, from_email: &str) -> Result<(), String> {
+pub async fn send_email_sendgrid(req: model::SendEmailRequest, api_key: &str, sender_name: &str, from_email: &str) -> Result<(), String> {
     let req_env_name = req.env_name.clone().unwrap_or_default();
     let req_app_name = req.app_name.clone().unwrap_or_default();
     let req_purpose_tag = req.purpose_tag.clone().unwrap_or_default();
@@ -18,11 +18,11 @@ pub async fn send_email_sendgrid(req: model::SendEmailRequest, api_key: &str, fr
     let req_body_type = req.body_type.clone().unwrap_or_default();
     let req_reply_to = req.reply_to.clone();
 
-    let to_emails: Vec<model::SendGridEmail> = req_send_to.iter().map(|e| model::SendGridEmail { email: e.clone() }).collect();
+    let to_emails: Vec<model::SendGridEmail> = req_send_to.iter().map(|e| model::SendGridEmail { email: e.clone(), name: None }).collect();
     let cc_emails: Option<Vec<model::SendGridEmail>> =
-        req.cc_to.map(|cc| cc.iter().map(|e| model::SendGridEmail { email: e.clone() }).collect());
+        req.cc_to.map(|cc| cc.iter().map(|e| model::SendGridEmail { email: e.clone(), name: None }).collect());
     let bcc_emails: Option<Vec<model::SendGridEmail>> =
-        req.bcc_to.map(|bcc| bcc.iter().map(|e| model::SendGridEmail { email: e.clone() }).collect());
+        req.bcc_to.map(|bcc| bcc.iter().map(|e| model::SendGridEmail { email: e.clone(), name: None }).collect());
     let personalization = model::SendGridPersonalization { to: to_emails, cc: cc_emails, bcc: bcc_emails };
 
     let content_type = match req_body_type.to_lowercase().as_str() {
@@ -60,8 +60,11 @@ pub async fn send_email_sendgrid(req: model::SendEmailRequest, api_key: &str, fr
 
     let payload = model::SendGridPayload {
         personalizations: vec![personalization],
-        from: model::SendGridEmail { email: from_email.to_string() },
-        reply_to: req_reply_to.map(|email| model::SendGridEmail { email }),
+        from: model::SendGridEmail {
+            email: from_email.to_string(),
+            name: if sender_name.is_empty() { None } else { Some(sender_name.to_string()) },
+        },
+        reply_to: req_reply_to.map(|email| model::SendGridEmail { email, name: None }),
         subject: req_subject.clone(),
         content,
         attachments,

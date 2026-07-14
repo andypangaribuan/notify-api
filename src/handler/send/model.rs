@@ -43,6 +43,8 @@ pub(super) struct SendEmailRequestAttachment {
 #[serde(crate = "rmod::serde")]
 pub(super) struct SendGridEmail {
     pub email: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
