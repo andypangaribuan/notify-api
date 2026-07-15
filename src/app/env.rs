@@ -56,14 +56,14 @@ pub fn db() -> (rmod::config::DbConfig, Option<rmod::config::DbConfig>) {
     (write, read)
 }
 
-pub fn rate_limit() -> String {
-    env::string_or("RATE_LIMIT", "-1")
-}
+// pub fn rate_limit() -> String {
+//     env::string_or("RATE_LIMIT", "-1")
+// }
 
-pub fn rate_limit_override() -> Option<String> {
-    env::string_opt("RATE_LIMIT_OVERRIDE")
-}
+// pub fn rate_limit_override() -> Option<String> {
+//     env::string_opt("RATE_LIMIT_OVERRIDE")
+// }
 
-pub fn rate_limit_time_range() -> Option<String> {
-    env::string_opt("RATE_LIMIT_TIME_RANGE")
-}
+// pub fn rate_limit_time_range() -> Option<String> {
+//     env::string_opt("RATE_LIMIT_TIME_RANGE")
+// }

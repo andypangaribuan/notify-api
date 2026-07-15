@@ -9,6 +9,7 @@ use super::model;
 use crate::{
     app::env,
     db::{entity, repo},
+    ext::email_rate_limit,
     handler::precondition::validate_ip,
     lookup,
 };
@@ -194,10 +195,10 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     }
 
     // 2. Check and reserve rate limit
-    let reserve_key = match crate::svc::rate_limit::check_and_reserve().await {
+    let reserve_key = match email_rate_limit::reserve(&credential.env_name, &credential.app_name).await {
         Ok(key) => key,
         Err(err_msg) => {
-            log!("🚫 Rate limit check failed: {}", err_msg);
+            log!("🚫 email rate limit check failed: {}", err_msg);
             if err_msg.contains("blocked") {
                 client_reader.get_mut().write_all(b"554 5.7.1 Sending not allowed by rate limit config\r\n").await?;
             } else {
@@ -207,6 +208,20 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
             return Ok(());
         }
     };
+
+    // let reserve_key = match crate::svc::rate_limit::check_and_reserve().await {
+    //     Ok(key) => key,
+    //     Err(err_msg) => {
+    //         log!("🚫 Rate limit check failed: {}", err_msg);
+    //         if err_msg.contains("blocked") {
+    //             client_reader.get_mut().write_all(b"554 5.7.1 Sending not allowed by rate limit config\r\n").await?;
+    //         } else {
+    //             client_reader.get_mut().write_all(b"451 4.7.1 Rate limit exceeded. Try again later\r\n").await?;
+    //         }
+    //         client_reader.get_mut().flush().await?;
+    //         return Ok(());
+    //     }
+    // };
 
     // Get email registry details
     let email_config = match get_email_registry(&credential).await {
@@ -233,7 +248,8 @@ async fn handle_connection(client_stream: TcpStream, client_ip: String) -> Resul
     if let Err(e) = relay_connection(client_reader, smtp_config).await {
         log!("❌ Relay failed: {:?}", e);
         if let Some(ref key) = reserve_key {
-            crate::svc::rate_limit::refund_reserve(key).await;
+            email_rate_limit::rollback(key).await;
+            // crate::svc::rate_limit::refund_reserve(key).await;
         }
         return Err(e);
     }

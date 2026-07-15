@@ -10,4 +10,4 @@ pub mod script;
 pub mod var;
 pub use crate::{dispatch_response, json_response, unwrap_or_return};
 pub mod email_rate_limit;
-pub mod util;
+// pub mod util;
