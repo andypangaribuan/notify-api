@@ -106,13 +106,14 @@ function rmd {
 
 #: test swaks - local
 function send-local {
-  swaks --to iam.pangaribuan@gmail.com \
-      --from "Treasury <no-reply@treasury.id>" \
-      --server 127.0.0.1 \
-      --port 7778 \
-      --auth LOGIN \
-      --auth-user apikey \
-      --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
+  swaks \
+    --to iam.pangaribuan@gmail.com \
+    --from "Treasury <no-reply@treasury.id>" \
+    --server 127.0.0.1 \
+    --port 7778 \
+    --auth LOGIN \
+    --auth-user apikey \
+    --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
 }
 
 
