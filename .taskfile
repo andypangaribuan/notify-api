@@ -104,15 +104,28 @@ function rmd {
 }
 
 
-#: test swaks
-function cs {
+#: test swaks - local
+function send-local {
   swaks --to iam.pangaribuan@gmail.com \
       --from "Treasury <no-reply@treasury.id>" \
       --server 127.0.0.1 \
-      --port 587 \
+      --port 7778 \
       --auth LOGIN \
       --auth-user apikey \
       --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
+}
+
+
+#: test swaks - private
+function send-private {
+  swaks \
+    --to iam.pangaribuan@gmail.com \
+    --from "Treasury <no-reply@treasury.id>" \
+    --server private-notify-smtp.treasury.plus \
+    --port 465 -tlsc \
+    --auth LOGIN \
+    --auth-user apikey \
+    --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
 }
 
 
