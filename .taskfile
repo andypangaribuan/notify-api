@@ -108,12 +108,12 @@ function rmd {
 function send-local {
   swaks \
     --to iam.pangaribuan@gmail.com \
-    --from "Treasury <no-reply@treasury.id>" \
+    --from "Private <private@private.com>" \
     --server 127.0.0.1 \
     --port 7778 \
     --auth LOGIN \
-    --auth-user apikey \
-    --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
+    --auth-user ak \
+    --auth-password xyz
 }
 
 
@@ -121,12 +121,12 @@ function send-local {
 function send-private {
   swaks \
     --to iam.pangaribuan@gmail.com \
-    --from "Treasury <no-reply@treasury.id>" \
-    --server private-notify-smtp.treasury.plus \
+    --from "Private <private@private.com>" \
+    --server private-notify-smtp \
     --port 465 -tlsc \
     --auth LOGIN \
-    --auth-user apikey \
-    --auth-password PpvQpVsChpr9dXPXxHiMiRTvsifUbQqjujzDbdxowoZMfaBqDg
+    --auth-user mo3 \
+    --auth-password xyz
 }
 
 
